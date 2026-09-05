@@ -5,7 +5,6 @@ import { DashboardPage } from './pages/DashboardPage';
 import { WalletPage } from './pages/WalletPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { TaskPage } from './pages/TaskPage';
-import { AdminPage } from './pages/AdminPage';
 import { GameCenterModal } from './components/GameCenterModal';
 import { QuickActionModal } from './components/QuickActionModal';
 import { BottomNav } from './components/BottomNav';
@@ -78,10 +77,8 @@ export const App: React.FC = () => {
         setActiveModal({ type: 'game', gameId: 'keno', title: 'Keno Turbo', icon: '🎯' });
       } else if (game === 'ludo') {
         setActiveModal({ type: 'game', gameId: 'ludo', title: 'Ludo Arena', icon: '🎲' });
-      } else if (page === 'wallet' || page === 'profile' || page === 'task' || page === 'admin') {
+      } else if (page === 'wallet' || page === 'profile' || page === 'task') {
         setActivePage(page);
-      } else if (window.location.pathname.includes('/admin') || window.location.hash.includes('#admin')) {
-        setActivePage('admin');
       }
     } catch (e) {
       console.warn('Could not parse URL query parameters:', e);
@@ -175,10 +172,6 @@ export const App: React.FC = () => {
     }
   };
 
-  if (activePage === 'admin') {
-    return <AdminPage onBackToApp={() => navigateTo('gamezone')} />;
-  }
-
   return (
     <div className="app-shell">
       {/* Floating Modern Header */}
@@ -223,7 +216,6 @@ export const App: React.FC = () => {
             <ProfilePage
               user={user}
               onShowToast={showToast}
-              onOpenAdmin={() => navigateTo('admin')}
             />
           )}
         </div>

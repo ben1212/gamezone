@@ -1,4 +1,4 @@
-export type PageType = 'gamezone' | 'wallet' | 'task' | 'profile' | 'admin';
+export type PageType = 'gamezone' | 'wallet' | 'task' | 'profile';
 
 export interface GameItem {
   id: string;

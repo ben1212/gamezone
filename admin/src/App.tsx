@@ -1,9 +1,5 @@
-import React, { useState } from 'react';
-import '../styles/Admin.css';
-
-interface AdminPageProps {
-  onBackToApp?: () => void;
-}
+import React, { useState, useEffect } from 'react';
+import { adminApi } from './services/api';
 
 interface TransactionItem {
   id: string;
@@ -33,8 +29,8 @@ interface UserItem {
   lastActive: string;
 }
 
-export const AdminPage: React.FC<AdminPageProps> = ({ onBackToApp }) => {
-  // ── Authentication State (Hardcoded admin / password123) ──
+export const App: React.FC = () => {
+  // ── Hardcoded Authentication State ──
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('gamezone_admin_auth') === 'true';
   });
@@ -42,7 +38,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackToApp }) => {
   const [loginPass, setLoginPass] = useState<string>('');
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // ── Active Section ──
+  // ── Active Navigation Section ──
   const [activeSection, setActiveSection] = useState<
     'overview' | 'payments' | 'users' | 'reports' | 'admins' | 'settings'
   >('overview');
@@ -55,7 +51,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackToApp }) => {
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
   const [showNewPaymentModal, setShowNewPaymentModal] = useState<boolean>(false);
 
-  // ── Transactions Data (Stateful) ──
+  // ── Data State ──
   const [transactions, setTransactions] = useState<TransactionItem[]>([
     {
       id: 'DP-20841',
@@ -186,7 +182,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackToApp }) => {
     },
   ]);
 
-  // ── Admin Permissions State ──
+  // ── Permissions State ──
   const [permissions, setPermissions] = useState({
     superViewUsers: true,
     superManagePayments: true,
@@ -220,14 +216,34 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackToApp }) => {
     }, 2800);
   };
 
+  // Fetch live backend data if available
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    adminApi.getTransactions().then((res) => {
+      if (res?.success && Array.isArray(res.data)) {
+        setTransactions(res.data);
+      }
+    });
+
+    adminApi.getUsers().then((res) => {
+      if (res?.success && Array.isArray(res.data)) {
+        setUsersList(res.data);
+      }
+    });
+  }, [isAuthenticated]);
+
   // ── Login Handler ──
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginUser === 'admin' && (loginPass === 'password123' || loginPass === 'admin123' || loginPass === 'gamezone2026')) {
+    if (
+      loginUser === 'admin' &&
+      (loginPass === 'password123' || loginPass === 'admin123' || loginPass === 'gamezone2026')
+    ) {
       setIsAuthenticated(true);
       localStorage.setItem('gamezone_admin_auth', 'true');
       setLoginError(null);
-      showToast('Welcome to GameZone Admin Portal');
+      showToast('Welcome to GameZone Admin Console');
     } else {
       setLoginError('Invalid administrative username or password.');
     }
@@ -241,9 +257,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackToApp }) => {
 
   // ── Payment Actions (Approve / Reject) ──
   const handleApproveTransaction = (id: string) => {
+    const tx = transactions.find((t) => t.id === id);
     setTransactions((prev) =>
       prev.map((t) => (t.id === id ? { ...t, status: 'approved' as const } : t))
     );
+    adminApi.approveTransaction(id, tx ? tx.amount : 0);
     showToast(`Transaction #${id} approved successfully`);
     if (selectedTx?.id === id) {
       setSelectedTx(null);
@@ -254,17 +272,19 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackToApp }) => {
     setTransactions((prev) =>
       prev.map((t) => (t.id === id ? { ...t, status: 'rejected' as const } : t))
     );
+    adminApi.rejectTransaction(id, 'Unverified SMS / receipt');
     showToast(`Transaction #${id} rejected`);
     if (selectedTx?.id === id) {
       setSelectedTx(null);
     }
   };
 
-  // ── User Status & Balance Actions ──
+  // ── User Actions ──
   const handleToggleUserStatus = (userId: string, newStatus: 'active' | 'restricted' | 'blocked') => {
     setUsersList((prev) =>
       prev.map((u) => (u.id === userId ? { ...u, status: newStatus } : u))
     );
+    adminApi.updateUser(userId, { status: newStatus });
     showToast(`Player #${userId} status set to ${newStatus}`);
     if (selectedUser?.id === userId) {
       setSelectedUser((prev) => (prev ? { ...prev, status: newStatus } : null));
@@ -288,12 +308,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackToApp }) => {
       )
     );
 
+    adminApi.updateUser(selectedUser.id, { balanceAdjustment: adjust });
     showToast(`Player #${selectedUser.id} balance adjusted by ${adjust > 0 ? '+' : ''}${adjust} ETB`);
     setSelectedUser(null);
     setBalanceAdjustAmount('');
   };
 
-  // ── CSV Export Helpers ──
+  // ── CSV Export ──
   const exportCSV = (filename: string, headers: string[], rows: (string | number)[][]) => {
     const csvContent =
       'data:text/csv;charset=utf-8,' +
@@ -387,23 +408,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackToApp }) => {
             <button type="submit" className="admin-login-btn">
               Access Admin Console →
             </button>
-
-            {onBackToApp && (
-              <button
-                type="button"
-                onClick={onBackToApp}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#8490a5',
-                  fontSize: '11px',
-                  marginTop: '16px',
-                  cursor: 'pointer',
-                }}
-              >
-                ← Return to Player WebApp
-              </button>
-            )}
           </form>
         </div>
       </div>
@@ -464,15 +468,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackToApp }) => {
         </button>
 
         <div className="admin-sidebar-footer">
-          {onBackToApp && (
-            <button
-              className="admin-nav-btn"
-              onClick={onBackToApp}
-              style={{ color: '#22d3ee', marginBottom: '6px' }}
-            >
-              <span>🎮</span> Play GameZone
-            </button>
-          )}
           <button className="admin-nav-btn" onClick={handleLogout} style={{ color: '#fb7185' }}>
             <span>🚪</span> Log Out
           </button>
@@ -1561,4 +1556,4 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBackToApp }) => {
   );
 };
 
-export default AdminPage;
+export default App;

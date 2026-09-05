@@ -1,5 +1,11 @@
 /* ===== GAMEZONE ADMIN PORTAL STYLING ===== */
-.admin-root {
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
   --adm-bg: #050810;
   --adm-panel: #0a101c;
   --adm-panel2: #0e1625;
@@ -13,15 +19,22 @@
   --adm-green: #34d399;
   --adm-yellow: #fbbf24;
   --adm-red: #fb7185;
+}
 
-  min-height: 100vh;
-  width: 100%;
+body {
+  font-family: 'Plus Jakarta Sans', Inter, system-ui, -apple-system, sans-serif;
   background:
     radial-gradient(circle at 80% -10%, rgba(99, 102, 241, 0.10), transparent 28%),
     radial-gradient(circle at 15% 15%, rgba(34, 211, 238, 0.035), transparent 25%),
     var(--adm-bg);
   color: var(--adm-text);
-  font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+  min-height: 100vh;
+  letter-spacing: -0.01em;
+}
+
+.admin-root {
+  min-height: 100vh;
+  width: 100%;
   display: flex;
 }
 
