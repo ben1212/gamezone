@@ -54,7 +54,7 @@ export function initTelegramBot(): any {
         console.warn('⚠️ Could not set chat menu button:', err?.message || err);
       });
 
-    // Main Menu Keyboards: ONLY 🎮 PLAY opens the Web App directly
+    // Helper: Build the Main Menu Keyboards
     const getMainMenuInlineKeyboard = () => ({
       inline_keyboard: [
         [
@@ -121,7 +121,16 @@ export function initTelegramBot(): any {
       is_persistent: true,
     });
 
-    // ── Content Builders with Clean Plain Text Formatting ──
+    // ── Content Builders for In-Bot Features ──
+
+    const getHomeMessage = () => {
+      return (
+        `🎮 GameZone\n\n` +
+        `Welcome to GameZone 👋\n` +
+        `Your games, wallet, and account — all in one place.\n\n` +
+        `Main menu`
+      );
+    };
 
     const getDepositMessage = () => {
       return (
@@ -136,7 +145,7 @@ export function initTelegramBot(): any {
           { text: 'Telebirr', callback_data: 'deposit_telebirr' },
           { text: 'CBE Birr', callback_data: 'deposit_cbe' },
         ],
-        [{ text: '« Main Menu', callback_data: 'menu_home' }],
+        [{ text: '« BACK', callback_data: 'menu_home' }],
       ],
     });
 
@@ -165,7 +174,7 @@ export function initTelegramBot(): any {
       inline_keyboard: [
         [
           { text: '« ተመለስ', callback_data: 'menu_deposit' },
-          { text: '« Main Menu', callback_data: 'menu_home' },
+          { text: '« BACK', callback_data: 'menu_home' },
         ],
       ],
     });
@@ -188,7 +197,7 @@ export function initTelegramBot(): any {
           { text: '250 ETB', callback_data: 'withdraw_250' },
           { text: '500 ETB', callback_data: 'withdraw_500' },
         ],
-        [{ text: '« Main Menu', callback_data: 'menu_home' }],
+        [{ text: '« BACK', callback_data: 'menu_home' }],
       ],
     });
 
@@ -209,11 +218,11 @@ export function initTelegramBot(): any {
           { text: '💸 Withdraw', callback_data: 'menu_withdraw' },
         ],
         [{ text: '🎮 PLAY', web_app: { url: WEB_APP_URL } }],
-        [{ text: '« Main Menu', callback_data: 'menu_home' }],
+        [{ text: '« BACK', callback_data: 'menu_home' }],
       ],
     });
 
-    const getReferralMessage = async () => {
+    const getReferralMessage = () => {
       const user = db.getUser();
       return (
         `🎁 ግብዣ\n\n` +
@@ -234,7 +243,7 @@ export function initTelegramBot(): any {
       return {
         inline_keyboard: [
           [{ text: '🎁 INVITE', url: shareUrl }],
-          [{ text: '« Main Menu', callback_data: 'menu_home' }],
+          [{ text: '« BACK', callback_data: 'menu_home' }],
         ],
       };
     };
@@ -259,7 +268,7 @@ export function initTelegramBot(): any {
           { text: '👛 ቀሪ ሂሳብ', callback_data: 'menu_balance' },
           { text: '🎮 PLAY', web_app: { url: WEB_APP_URL } },
         ],
-        [{ text: '« Main Menu', callback_data: 'menu_home' }],
+        [{ text: '« BACK', callback_data: 'menu_home' }],
       ],
     });
 
@@ -275,12 +284,41 @@ export function initTelegramBot(): any {
     const getAnnouncementsKeyboard = () => ({
       inline_keyboard: [
         [{ text: '🎮 PLAY', web_app: { url: WEB_APP_URL } }],
-        [{ text: '« Main Menu', callback_data: 'menu_home' }],
+        [{ text: '« BACK', callback_data: 'menu_home' }],
       ],
     });
 
-    const sendWelcomeMessage = async (chatId: number, user?: any) => {
-      console.log(`✨ Sending welcome message to Chat ID: ${chatId} (@${user?.username || 'user'})`);
+    // ── Seamless In-Place Message Editor ──
+    const editOrSend = async (
+      chatId: number,
+      messageId: number | undefined,
+      text: string,
+      keyboard: any
+    ) => {
+      if (messageId) {
+        try {
+          await bot.editMessageText(text, {
+            chat_id: chatId,
+            message_id: messageId,
+            reply_markup: keyboard,
+          });
+          return;
+        } catch (err: any) {
+          if (!err?.message?.includes('message is not modified')) {
+            console.warn('Could not edit message, fallback to send:', err?.message || err);
+          } else {
+            return;
+          }
+        }
+      }
+
+      await bot.sendMessage(chatId, text, {
+        reply_markup: keyboard,
+      });
+    };
+
+    const sendWelcomeMessage = async (chatId: number, user?: any, messageId?: number) => {
+      console.log(`✨ Sending/Updating welcome message for Chat ID: ${chatId} (@${user?.username || 'user'})`);
 
       // Sync or update user in database
       if (user) {
@@ -293,27 +331,27 @@ export function initTelegramBot(): any {
         });
       }
 
-      const welcomeText =
-        `🎮 GameZone\n\n` +
-        `Welcome to GameZone 👋\n` +
-        `Your games, wallet, and account — all in one place.\n\n` +
-        `Main menu`;
+      const welcomeText = getHomeMessage();
 
-      await bot.sendMessage(chatId, welcomeText, {
-        reply_markup: getMainMenuInlineKeyboard(),
-      });
+      if (messageId) {
+        await editOrSend(chatId, messageId, welcomeText, getMainMenuInlineKeyboard());
+      } else {
+        await bot.sendMessage(chatId, welcomeText, {
+          reply_markup: getMainMenuInlineKeyboard(),
+        });
 
-      // Set persistent reply keyboard
-      await bot.sendMessage(
-        chatId,
-        '👇 Tap 🎮 PLAY to start immediately or use the menu:',
-        {
-          reply_markup: getMainMenuReplyKeyboard(),
-        }
-      );
+        // Set persistent bottom reply keyboard
+        await bot.sendMessage(
+          chatId,
+          '👇 Tap 🎮 PLAY to start immediately or use the menu:',
+          {
+            reply_markup: getMainMenuReplyKeyboard(),
+          }
+        );
+      }
     };
 
-    // ── Command & Text Message Handler ──
+    // ── Text Messages & Command Handlers ──
     bot.on('message', async (msg: any) => {
       if (!msg.text) return;
       const chatId = msg.chat.id;
@@ -343,7 +381,7 @@ export function initTelegramBot(): any {
             reply_markup: getBalanceKeyboard(),
           });
         } else if (text === '🎁 REFERRAL' || text.toLowerCase().includes('referral') || text.includes('ግብዣ')) {
-          const refMsg = await getReferralMessage();
+          const refMsg = getReferralMessage();
           const refKb = await getReferralKeyboard();
           await bot.sendMessage(chatId, refMsg, {
             reply_markup: refKb,
@@ -358,68 +396,50 @@ export function initTelegramBot(): any {
       }
     });
 
-    // ── Handle Callback Queries (Inline Buttons) ──
+    // ── Handle Callback Queries (In-Place Message Editing) ──
     bot.on('callback_query', async (query: any) => {
       try {
         const chatId = query.message?.chat.id;
+        const messageId = query.message?.message_id;
         const data = query.data;
         if (!chatId || !data) return;
 
         await bot.answerCallbackQuery(query.id);
 
         if (data === 'menu_home') {
-          await sendWelcomeMessage(chatId, query.from);
+          await sendWelcomeMessage(chatId, query.from, messageId);
         } else if (data === 'menu_deposit') {
-          await bot.sendMessage(chatId, getDepositMessage(), {
-            reply_markup: getDepositKeyboard(),
-          });
+          await editOrSend(chatId, messageId, getDepositMessage(), getDepositKeyboard());
         } else if (data === 'deposit_telebirr') {
-          await bot.sendMessage(chatId, getDepositDetailsMessage('telebirr'), {
-            reply_markup: getDepositDetailsKeyboard(),
-          });
+          await editOrSend(chatId, messageId, getDepositDetailsMessage('telebirr'), getDepositDetailsKeyboard());
         } else if (data === 'deposit_cbe') {
-          await bot.sendMessage(chatId, getDepositDetailsMessage('cbe'), {
-            reply_markup: getDepositDetailsKeyboard(),
-          });
+          await editOrSend(chatId, messageId, getDepositDetailsMessage('cbe'), getDepositDetailsKeyboard());
         } else if (data === 'menu_withdraw') {
-          await bot.sendMessage(chatId, getWithdrawMessage(), {
-            reply_markup: getWithdrawKeyboard(),
-          });
+          await editOrSend(chatId, messageId, getWithdrawMessage(), getWithdrawKeyboard());
         } else if (data.startsWith('withdraw_')) {
           const amount = data.replace('withdraw_', '');
-          await bot.sendMessage(
-            chatId,
-            `💸 የ ${amount} ETB የመውጣት ጥያቄ ተቀብለናል\n\n` +
+          const confirmText =
+            `💸 የ ${amount} ETB የመውጣት ጥያቄ\n\n` +
             `Amount: ${amount} ETB\n` +
             `Status: Pending ⏳\n\n` +
-            `ገንዘቡ በ 1-5 ደቂቃ ውስጥ ወደ አካውንትዎ ይላካል።`,
-            {
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '👛 ቀሪ ሂሳብ', callback_data: 'menu_balance' }],
-                  [{ text: '« Main Menu', callback_data: 'menu_home' }],
-                ],
-              },
-            }
-          );
+            `ገንዘቡ በ 1-5 ደቂቃ ውስጥ ወደ አካውንትዎ ይላካል።`;
+          const confirmKeyboard = {
+            inline_keyboard: [
+              [{ text: '👛 ቀሪ ሂሳብ', callback_data: 'menu_balance' }],
+              [{ text: '« BACK', callback_data: 'menu_home' }],
+            ],
+          };
+          await editOrSend(chatId, messageId, confirmText, confirmKeyboard);
         } else if (data === 'menu_profile') {
-          await bot.sendMessage(chatId, getProfileMessage(), {
-            reply_markup: getProfileKeyboard(),
-          });
+          await editOrSend(chatId, messageId, getProfileMessage(), getProfileKeyboard());
         } else if (data === 'menu_balance') {
-          await bot.sendMessage(chatId, getBalanceMessage(), {
-            reply_markup: getBalanceKeyboard(),
-          });
+          await editOrSend(chatId, messageId, getBalanceMessage(), getBalanceKeyboard());
         } else if (data === 'menu_referral') {
-          const refMsg = await getReferralMessage();
+          const refMsg = getReferralMessage();
           const refKb = await getReferralKeyboard();
-          await bot.sendMessage(chatId, refMsg, {
-            reply_markup: refKb,
-          });
+          await editOrSend(chatId, messageId, refMsg, refKb);
         } else if (data === 'menu_announcements') {
-          await bot.sendMessage(chatId, getAnnouncementsMessage(), {
-            reply_markup: getAnnouncementsKeyboard(),
-          });
+          await editOrSend(chatId, messageId, getAnnouncementsMessage(), getAnnouncementsKeyboard());
         }
       } catch (err: any) {
         console.error('Error handling callback_query:', err?.message || err);
