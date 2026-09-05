@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 const TelegramBot = require('node-telegram-bot-api');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8933892491:AAHud2vFLTILg_iR-7Edq_E5ycaqr8eQv8s';
-const WEB_APP_URL = process.env.WEB_APP_URL || process.env.CLIENT_URL || 'http://localhost:3000';
+const WEB_APP_URL = process.env.WEB_APP_URL || process.env.CLIENT_URL || 'https://gamezone-ben.up.railway.app';
 
 let botInstance: any = null;
 
@@ -27,6 +27,16 @@ export function initTelegramBot(): any {
     botInstance = bot;
 
     console.log('🤖 Telegram Bot Service Initializing...');
+
+    // Delete any old webhook to prevent polling conflicts
+    bot
+      .deleteWebHook()
+      .then(() => {
+        console.log('🧹 Cleared existing Telegram webhooks.');
+      })
+      .catch((err: any) => {
+        console.warn('⚠️ deleteWebHook warning:', err?.message || err);
+      });
 
     // Set the Web App Chat Menu Button (Persistent Button on Bottom Left of Chat)
     bot
@@ -121,6 +131,8 @@ export function initTelegramBot(): any {
     });
 
     const sendWelcomeMessage = async (chatId: number, user?: any) => {
+      console.log(`✨ Sending welcome message to Chat ID: ${chatId} (@${user?.username || 'user'})`);
+      
       // Sync or update user in database
       if (user) {
         const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Player';
@@ -150,95 +162,19 @@ export function initTelegramBot(): any {
       );
     };
 
-    // ── Command: /start & /menu ──
-    bot.onText(/\/(start|menu)/, async (msg: any) => {
-      try {
-        await sendWelcomeMessage(msg.chat.id, msg.from);
-      } catch (err: any) {
-        console.error('Error handling /start:', err?.message || err);
-      }
-    });
-
-    // ── Handle Callback Queries (Inline Buttons) ──
-    bot.on('callback_query', async (query: any) => {
-      try {
-        const chatId = query.message?.chat.id;
-        const data = query.data;
-        if (!chatId || !data) return;
-
-        await bot.answerCallbackQuery(query.id);
-
-        if (data === 'menu_balance') {
-          const balances = db.getBalances();
-          const balanceMsg = `👛 *Your GameZone Balances:*\n\n` +
-            `💰 *Total:* ${balances.total.toFixed(2)} ${balances.currency}\n` +
-            `🎮 *Playable:* ${balances.playable.toFixed(2)} ${balances.currency}\n` +
-            `💸 *Withdrawable:* ${balances.withdrawable.toFixed(2)} ${balances.currency}\n\n` +
-            `_Tap below to play games or manage your wallet._`;
-
-          await bot.sendMessage(chatId, balanceMsg, {
-            parse_mode: 'Markdown',
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '🎮 PLAY NOW', web_app: { url: WEB_APP_URL } }],
-                [
-                  { text: '💰 Deposit', web_app: { url: `${WEB_APP_URL}?action=deposit` } },
-                  { text: '💸 Withdraw', web_app: { url: `${WEB_APP_URL}?action=withdraw` } },
-                ],
-              ],
-            },
-          });
-        } else if (data === 'menu_referral') {
-          const user = db.getUser();
-          const me = await bot.getMe();
-          const botUsername = me.username || 'Gamezone_bot';
-          const refLink = `https://t.me/${botUsername}?start=ref_${user.telegramId || user.id}`;
-
-          const refMsg = `🎁 *Invite Friends & Earn ETB!*\n\n` +
-            `Share your referral link with friends. You earn *25 ETB* for each active player you invite!\n\n` +
-            `👥 *Your Total Referrals:* ${user.totalReferrals || 0}\n` +
-            `💵 *Total Bonus Earned:* ${(user.referralBonusETB || 0).toFixed(2)} ETB\n\n` +
-            `🔗 *Your Referral Link:*\n\`${refLink}\``;
-
-          await bot.sendMessage(chatId, refMsg, {
-            parse_mode: 'Markdown',
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '🎮 OPEN GAMEZONE', web_app: { url: WEB_APP_URL } }],
-                [{ text: '📢 Share Referral Link', url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join me on GameZone and win real prizes! 🎮💰')}` }],
-              ],
-            },
-          });
-        } else if (data === 'menu_announcements') {
-          const announceMsg = `📢 *GameZone Announcements & News*\n\n` +
-            `🔥 *Bingo Live Turbo Rooms* are active with prize pools up to *50,000 ETB*!\n` +
-            `⚡ *Instant Telebirr & CBE* deposits and withdrawals 24/7.\n` +
-            `🎯 *Keno Turbo 2.0* tournament starts every 30 minutes.\n\n` +
-            `Join the action now!`;
-
-          await bot.sendMessage(chatId, announceMsg, {
-            parse_mode: 'Markdown',
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '🎮 PLAY NOW', web_app: { url: WEB_APP_URL } }],
-              ],
-            },
-          });
-        }
-      } catch (err: any) {
-        console.error('Error handling callback_query:', err?.message || err);
-      }
-    });
-
-    // ── Handle Text Messages (from reply keyboard) ──
+    // ── Command: /start & /menu & general message handler ──
     bot.on('message', async (msg: any) => {
-      // Ignore slash commands already handled
-      if (!msg.text || msg.text.startsWith('/')) return;
-
+      if (!msg.text) return;
       const chatId = msg.chat.id;
       const text = msg.text.trim();
+      console.log(`📩 Telegram Message [${chatId}]: "${text}" from @${msg.from?.username || msg.from?.first_name}`);
 
       try {
+        if (text.startsWith('/start') || text.startsWith('/menu') || text.toLowerCase() === 'start') {
+          await sendWelcomeMessage(chatId, msg.from);
+          return;
+        }
+
         if (text === '👛 BALANCE' || text.toLowerCase().includes('balance')) {
           const balances = db.getBalances();
           const balanceMsg = `👛 *Your GameZone Balances:*\n\n` +
@@ -261,7 +197,7 @@ export function initTelegramBot(): any {
         } else if (text === '🎁 REFERRAL' || text.toLowerCase().includes('referral')) {
           const user = db.getUser();
           const me = await bot.getMe();
-          const botUsername = me.username || 'Gamezone_bot';
+          const botUsername = me.username || 'bingox2019_bot';
           const refLink = `https://t.me/${botUsername}?start=ref_${user.telegramId || user.id}`;
 
           const refMsg = `🎁 *Invite & Earn ETB*\n\n` +
@@ -337,6 +273,77 @@ export function initTelegramBot(): any {
         }
       } catch (err: any) {
         console.error('Error handling text message:', err?.message || err);
+      }
+    });
+
+    // ── Handle Callback Queries (Inline Buttons) ──
+    bot.on('callback_query', async (query: any) => {
+      try {
+        const chatId = query.message?.chat.id;
+        const data = query.data;
+        if (!chatId || !data) return;
+
+        await bot.answerCallbackQuery(query.id);
+
+        if (data === 'menu_balance') {
+          const balances = db.getBalances();
+          const balanceMsg = `👛 *Your GameZone Balances:*\n\n` +
+            `💰 *Total:* ${balances.total.toFixed(2)} ${balances.currency}\n` +
+            `🎮 *Playable:* ${balances.playable.toFixed(2)} ${balances.currency}\n` +
+            `💸 *Withdrawable:* ${balances.withdrawable.toFixed(2)} ${balances.currency}\n\n` +
+            `_Tap below to play games or manage your wallet._`;
+
+          await bot.sendMessage(chatId, balanceMsg, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🎮 PLAY NOW', web_app: { url: WEB_APP_URL } }],
+                [
+                  { text: '💰 Deposit', web_app: { url: `${WEB_APP_URL}?action=deposit` } },
+                  { text: '💸 Withdraw', web_app: { url: `${WEB_APP_URL}?action=withdraw` } },
+                ],
+              ],
+            },
+          });
+        } else if (data === 'menu_referral') {
+          const user = db.getUser();
+          const me = await bot.getMe();
+          const botUsername = me.username || 'bingox2019_bot';
+          const refLink = `https://t.me/${botUsername}?start=ref_${user.telegramId || user.id}`;
+
+          const refMsg = `🎁 *Invite Friends & Earn ETB!*\n\n` +
+            `Share your referral link with friends. You earn *25 ETB* for each active player you invite!\n\n` +
+            `👥 *Your Total Referrals:* ${user.totalReferrals || 0}\n` +
+            `💵 *Total Bonus Earned:* ${(user.referralBonusETB || 0).toFixed(2)} ETB\n\n` +
+            `🔗 *Your Referral Link:*\n\`${refLink}\``;
+
+          await bot.sendMessage(chatId, refMsg, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🎮 OPEN GAMEZONE', web_app: { url: WEB_APP_URL } }],
+                [{ text: '📢 Share Referral Link', url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join me on GameZone and win real prizes! 🎮💰')}` }],
+              ],
+            },
+          });
+        } else if (data === 'menu_announcements') {
+          const announceMsg = `📢 *GameZone Announcements & News*\n\n` +
+            `🔥 *Bingo Live Turbo Rooms* are active with prize pools up to *50,000 ETB*!\n` +
+            `⚡ *Instant Telebirr & CBE* deposits and withdrawals 24/7.\n` +
+            `🎯 *Keno Turbo 2.0* tournament starts every 30 minutes.\n\n` +
+            `Join the action now!`;
+
+          await bot.sendMessage(chatId, announceMsg, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🎮 PLAY NOW', web_app: { url: WEB_APP_URL } }],
+              ],
+            },
+          });
+        }
+      } catch (err: any) {
+        console.error('Error handling callback_query:', err?.message || err);
       }
     });
 
