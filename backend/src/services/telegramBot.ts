@@ -12,10 +12,12 @@ const WEB_APP_URL = process.env.WEB_APP_URL || process.env.CLIENT_URL || 'https:
 
 interface UserSession {
   lastBotMessageId?: number;
-  step?: 'idle' | 'withdraw_amount' | 'withdraw_account' | 'withdraw_confirm' | 'deposit_ref';
+  step?: 'idle' | 'withdraw_amount' | 'withdraw_account' | 'withdraw_confirm' | 'deposit_amount' | 'deposit_sms';
   withdrawAmount?: number;
   withdrawAccount?: string;
   withdrawMethod?: string;
+  depositAmount?: number;
+  depositMethod?: 'telebirr' | 'cbe';
 }
 
 const sessions = new Map<number, UserSession>();
@@ -105,7 +107,7 @@ export function initTelegramBot(): any {
       inlineKeyboard?: any
     ) => {
       const session = getSession(chatId);
-      const replyMarkup = inlineKeyboard ? { inline_keyboard: inlineKeyboard } : undefined;
+      const replyMarkup = inlineKeyboard && inlineKeyboard.length > 0 ? { inline_keyboard: inlineKeyboard } : undefined;
 
       if (session.lastBotMessageId) {
         try {
@@ -197,13 +199,17 @@ export function initTelegramBot(): any {
       }
     };
 
+    // ── Step-by-Step Deposit Flow ──
+
     const showDeposit = async (chatId: number) => {
       const session = getSession(chatId);
       session.step = 'idle';
+      session.depositAmount = undefined;
+      session.depositMethod = undefined;
 
       const text =
-        `💰 ገንዘብ ለመጨመር\n\n` +
-        `የክፍያ ዘዴ ይምረጡ።`;
+        `💰 Deposit\n\n` +
+        `Select payment method:`;
 
       const inlineKeyboard = [
         [
@@ -215,35 +221,92 @@ export function initTelegramBot(): any {
       await editOrSendState(chatId, text, inlineKeyboard);
     };
 
-    const showDepositDetails = async (chatId: number, method: 'telebirr' | 'cbe') => {
+    const handleSelectDepositMethod = async (chatId: number, method: 'telebirr' | 'cbe') => {
       const session = getSession(chatId);
-      session.step = 'deposit_ref';
+      session.step = 'deposit_amount';
+      session.depositMethod = method;
 
-      let text = '';
-      if (method === 'telebirr') {
-        text =
-          `💰 Telebirr\n\n` +
-          `መጠን → የክፍያ መመሪያ → SMS ማረጋገጫ → Pending\n\n` +
-          `📱 Telebirr: 0911002233\n` +
-          `📛 ስም: GameZone\n` +
-          `💵 ዝቅተኛ መጠን: 50 ETB\n\n` +
-          `ክፍያውን ከፈጸሙ በኋላ የደረሰዎትን SMS መልእክት እዚህ ይላኩ።`;
-      } else {
-        text =
-          `💰 CBE Birr / Bank\n\n` +
-          `መጠን → የክፍያ መመሪያ → SMS ማረጋገጫ → Pending\n\n` +
-          `🏦 CBE አካውንት: 1000123456789\n` +
-          `📛 ስም: GameZone Ltd\n` +
-          `💵 ዝቅተኛ መጠን: 50 ETB\n\n` +
-          `ክፍያውን ከፈጸሙ በኋላ የደረሰዎትን SMS ወይም Transaction ID እዚህ ይላኩ።`;
-      }
+      const text =
+        `💰 Deposit\n\n` +
+        `Enter amount:\n\n` +
+        `Minimum: 10 ETB`;
 
       const inlineKeyboard = [
-        [{ text: '« ተመለስ', callback_data: 'nav_deposit' }],
+        [
+          { text: '50 ETB', callback_data: 'd_amt_50' },
+          { text: '100 ETB', callback_data: 'd_amt_100' },
+          { text: '250 ETB', callback_data: 'd_amt_250' },
+          { text: '500 ETB', callback_data: 'd_amt_500' },
+        ],
       ];
 
       await editOrSendState(chatId, text, inlineKeyboard);
     };
+
+    const handleDepositAmount = async (chatId: number, amount: number) => {
+      const session = getSession(chatId);
+
+      if (isNaN(amount) || amount < 10) {
+        const text =
+          `💰 Deposit\n\n` +
+          `❌ Minimum amount is 10 ETB.\n\n` +
+          `Enter amount:\n\n` +
+          `Minimum: 10 ETB`;
+        await editOrSendState(chatId, text, [
+          [{ text: '50 ETB', callback_data: 'd_amt_50' }, { text: '100 ETB', callback_data: 'd_amt_100' }],
+        ]);
+        return;
+      }
+
+      session.depositAmount = amount;
+      session.step = 'deposit_sms';
+
+      const method = session.depositMethod || 'telebirr';
+      const accountNumber = method === 'telebirr' ? '0911002233' : '1000123456789';
+
+      const text =
+        `💳 Payment\n\n` +
+        `Amount: ${amount} ETB\n\n` +
+        `Send ${amount} ETB to:\n` +
+        `${accountNumber}\n\n` +
+        `Then send the payment SMS here.`;
+
+      await editOrSendState(chatId, text);
+    };
+
+    const handleDepositSms = async (chatId: number, smsText: string) => {
+      const session = getSession(chatId);
+      const amount = session.depositAmount || 100;
+
+      // Add pending deposit transaction
+      db.addTransaction({
+        id: `tx-d-${Date.now()}`,
+        userId: String(chatId),
+        title: `Deposit via ${session.depositMethod === 'cbe' ? 'CBE' : 'Telebirr'}`,
+        meta: `Ref: ${smsText.slice(0, 30)}`,
+        amount: amount,
+        currency: 'ETB',
+        type: 'positive',
+        status: 'pending',
+        timestamp: new Date().toISOString(),
+      });
+
+      session.step = 'idle';
+
+      const text =
+        `⏳ Deposit Pending\n\n` +
+        `Amount: ${amount} ETB\n\n` +
+        `Your payment is being verified.`;
+
+      const inlineKeyboard = [
+        [{ text: '👛 ቀሪ ሂሳብ', callback_data: 'nav_balance' }],
+        [{ text: '🎮 PLAY', web_app: { url: WEB_APP_URL } }],
+      ];
+
+      await editOrSendState(chatId, text, inlineKeyboard);
+    };
+
+    // ── Step-by-Step Withdrawal Flow ──
 
     const showWithdrawStart = async (chatId: number) => {
       const session = getSession(chatId);
@@ -277,7 +340,7 @@ export function initTelegramBot(): any {
           `💸 ገንዘብ ማውጣት\n\n` +
           `❌ ዝቅተኛው የማውጣት መጠን 50 ETB ነው።\n\n` +
           `Withdrawable: ${balances.withdrawable.toFixed(0)} ETB\n\n` +
-          `እባክዎ ትክክለኛ መጠን ያስገቡ:`;
+          `የሚያወጡትን መጠን ያስገቡ:`;
         await editOrSendState(chatId, text, [
           [{ text: '100 ETB', callback_data: 'w_amt_100' }, { text: '250 ETB', callback_data: 'w_amt_250' }],
         ]);
@@ -391,6 +454,8 @@ export function initTelegramBot(): any {
       await editOrSendState(chatId, text, inlineKeyboard);
     };
 
+    // ── Balance, Referral, Profile, Announcements ──
+
     const showBalance = async (chatId: number) => {
       const session = getSession(chatId);
       session.step = 'idle';
@@ -437,6 +502,7 @@ export function initTelegramBot(): any {
       await editOrSendState(chatId, text, inlineKeyboard);
     };
 
+    // Profile: ONLY Profile Info, no balance or play button!
     const showProfile = async (chatId: number) => {
       const session = getSession(chatId);
       session.step = 'idle';
@@ -447,17 +513,13 @@ export function initTelegramBot(): any {
 
       const text =
         `👤 መገለጫ\n\n` +
-        `Name: ${user.name || 'Player'}\n` +
+        `Name: ${user.name || 'Bini'}\n` +
         `Username: ${user.username || '@username'}\n` +
         `Phone: ${phoneDisplay}\n` +
         `ID: #${idDisplay}`;
 
-      const inlineKeyboard = [
-        [{ text: '👛 ቀሪ ሂሳብ', callback_data: 'nav_balance' }],
-        [{ text: '🎮 PLAY', web_app: { url: WEB_APP_URL } }],
-      ];
-
-      await editOrSendState(chatId, text, inlineKeyboard);
+      // Clean profile info ONLY, no extra buttons underneath
+      await editOrSendState(chatId, text);
     };
 
     const showAnnouncements = async (chatId: number) => {
@@ -530,7 +592,21 @@ export function initTelegramBot(): any {
           return;
         }
 
-        // 3. User Input States (Amounts, Accounts)
+        // 3. User Input States for Deposit
+        if (session.step === 'deposit_amount') {
+          await tryDeleteUserMsg(chatId, msg.message_id);
+          const amt = parseFloat(text.replace(/[^0-9.]/g, ''));
+          await handleDepositAmount(chatId, amt);
+          return;
+        }
+
+        if (session.step === 'deposit_sms') {
+          await tryDeleteUserMsg(chatId, msg.message_id);
+          await handleDepositSms(chatId, text);
+          return;
+        }
+
+        // 4. User Input States for Withdrawal
         if (session.step === 'withdraw_amount') {
           await tryDeleteUserMsg(chatId, msg.message_id);
           const amt = parseFloat(text.replace(/[^0-9.]/g, ''));
@@ -541,17 +617,6 @@ export function initTelegramBot(): any {
         if (session.step === 'withdraw_account') {
           await tryDeleteUserMsg(chatId, msg.message_id);
           await handleWithdrawAccount(chatId, text);
-          return;
-        }
-
-        if (session.step === 'deposit_ref') {
-          await tryDeleteUserMsg(chatId, msg.message_id);
-          await editOrSendState(
-            chatId,
-            `✅ የደረሰኝ ማረጋገጫ ተቀብለናል!\n\nRef: \`${text}\`\nStatus: Verifying ⏳\n\nሂሳብዎ በቅርቡ ይሞላል።`,
-            [[{ text: '👛 ቀሪ ሂሳብ', callback_data: 'nav_balance' }, { text: '🎮 PLAY', web_app: { url: WEB_APP_URL } }]]
-          );
-          session.step = 'idle';
           return;
         }
 
@@ -576,9 +641,12 @@ export function initTelegramBot(): any {
         } else if (data === 'nav_deposit') {
           await showDeposit(chatId);
         } else if (data === 'deposit_telebirr') {
-          await showDepositDetails(chatId, 'telebirr');
+          await handleSelectDepositMethod(chatId, 'telebirr');
         } else if (data === 'deposit_cbe') {
-          await showDepositDetails(chatId, 'cbe');
+          await handleSelectDepositMethod(chatId, 'cbe');
+        } else if (data.startsWith('d_amt_')) {
+          const amt = parseInt(data.replace('d_amt_', ''), 10);
+          await handleDepositAmount(chatId, amt);
         } else if (data === 'nav_withdraw') {
           await showWithdrawStart(chatId);
         } else if (data.startsWith('w_amt_')) {
