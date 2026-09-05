@@ -231,16 +231,7 @@ export function initTelegramBot(): any {
         `Enter amount:\n\n` +
         `Minimum: 10 ETB`;
 
-      const inlineKeyboard = [
-        [
-          { text: '50 ETB', callback_data: 'd_amt_50' },
-          { text: '100 ETB', callback_data: 'd_amt_100' },
-          { text: '250 ETB', callback_data: 'd_amt_250' },
-          { text: '500 ETB', callback_data: 'd_amt_500' },
-        ],
-      ];
-
-      await editOrSendState(chatId, text, inlineKeyboard);
+      await editOrSendState(chatId, text);
     };
 
     const handleDepositAmount = async (chatId: number, amount: number) => {
@@ -252,9 +243,7 @@ export function initTelegramBot(): any {
           `❌ Minimum amount is 10 ETB.\n\n` +
           `Enter amount:\n\n` +
           `Minimum: 10 ETB`;
-        await editOrSendState(chatId, text, [
-          [{ text: '50 ETB', callback_data: 'd_amt_50' }, { text: '100 ETB', callback_data: 'd_amt_100' }],
-        ]);
+        await editOrSendState(chatId, text);
         return;
       }
 
@@ -320,15 +309,7 @@ export function initTelegramBot(): any {
         `Withdrawable: ${balances.withdrawable.toFixed(0)} ETB\n\n` +
         `የሚያወጡትን መጠን ያስገቡ።`;
 
-      const inlineKeyboard = [
-        [
-          { text: '100 ETB', callback_data: 'w_amt_100' },
-          { text: '250 ETB', callback_data: 'w_amt_250' },
-          { text: '500 ETB', callback_data: 'w_amt_500' },
-        ],
-      ];
-
-      await editOrSendState(chatId, text, inlineKeyboard);
+      await editOrSendState(chatId, text);
     };
 
     const handleWithdrawAmount = async (chatId: number, amount: number) => {
@@ -341,9 +322,7 @@ export function initTelegramBot(): any {
           `❌ ዝቅተኛው የማውጣት መጠን 50 ETB ነው።\n\n` +
           `Withdrawable: ${balances.withdrawable.toFixed(0)} ETB\n\n` +
           `የሚያወጡትን መጠን ያስገቡ:`;
-        await editOrSendState(chatId, text, [
-          [{ text: '100 ETB', callback_data: 'w_amt_100' }, { text: '250 ETB', callback_data: 'w_amt_250' }],
-        ]);
+        await editOrSendState(chatId, text);
         return;
       }
 
