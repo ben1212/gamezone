@@ -6,11 +6,13 @@ interface ProfilePageProps {
   user: UserProfile;
   onBack?: () => void;
   onShowToast?: (msg: string) => void;
+  onOpenAdmin?: () => void;
 }
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({
   user,
   onShowToast,
+  onOpenAdmin,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -90,6 +92,28 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             <span className="info-value">{user.totalReferrals || 0}</span>
           </div>
         </div>
+
+        {/* Staff Admin Portal Access */}
+        {onOpenAdmin && (
+          <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(148, 163, 184, 0.1)', textAlign: 'center' }}>
+            <button
+              onClick={onOpenAdmin}
+              type="button"
+              style={{
+                background: 'rgba(99, 102, 241, 0.08)',
+                border: '1px solid rgba(99, 102, 241, 0.25)',
+                color: '#818cf8',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              ⚙ Open Administrative Portal
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
