@@ -1,6 +1,6 @@
 import { Transaction, UserProfile, WalletBalances } from '../types';
 
-const RAW_API_URL = import.meta.env.VITE_API_URL || '';
+const RAW_API_URL = ((import.meta as any).env?.VITE_API_URL as string) || 'https://gamezone-ben.up.railway.app';
 const API_BASE_URL = RAW_API_URL ? `${RAW_API_URL.replace(/\/$/, '')}/api` : '/api';
 
 class ApiService {
