@@ -1,6 +1,7 @@
 import { Transaction, UserProfile, WalletBalances } from '../types';
 
-const API_BASE_URL = '/api';
+const RAW_API_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = RAW_API_URL ? `${RAW_API_URL.replace(/\/$/, '')}/api` : '/api';
 
 class ApiService {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T | null> {
