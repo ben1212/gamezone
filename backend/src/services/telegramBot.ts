@@ -285,14 +285,10 @@ export function initTelegramBot(): any {
       const text =
         `⏳ Deposit Pending\n\n` +
         `Amount: ${amount} ETB\n\n` +
-        `Your payment is being verified.`;
+        `Your payment is being verified.\n` +
+        `You will be notified once completed.`;
 
-      const inlineKeyboard = [
-        [{ text: '👛 ቀሪ ሂሳብ', callback_data: 'nav_balance' }],
-        [{ text: '🎮 PLAY', web_app: { url: WEB_APP_URL } }],
-      ];
-
-      await editOrSendState(chatId, text, inlineKeyboard);
+      await editOrSendState(chatId, text);
     };
 
     // ── Step-by-Step Withdrawal Flow ──
