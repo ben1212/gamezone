@@ -78,13 +78,104 @@ export const adminApi = {
   },
 
   // Update user
-  updateUser: async (id: string, data: { status?: string; balanceAdjustment?: number }) => {
+  updateUser: async (id: string, data: { status?: string; balanceAdjustment?: number; reason?: string }) => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/users/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  // Games control
+  getGames: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/games`);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  toggleGame: async (gameId: string, status?: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/games/${gameId}/toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  createBingoRoom: async (roomData: { name: string; stake: number; minPlayers: number; maxPlayers: number }) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/games/bingo/rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(roomData),
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  // Broadcasts
+  getBroadcasts: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/broadcasts`);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  sendBroadcast: async (broadcastData: { title: string; message: string; target: string }) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/broadcasts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(broadcastData),
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  // Staff & Logs
+  getStaff: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/staff`);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  addStaff: async (staffData: { name: string; username: string; role: string; email: string }) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/staff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(staffData),
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  getLogs: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/logs`);
       return await res.json();
     } catch {
       return null;

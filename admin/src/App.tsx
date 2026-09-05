@@ -6,6 +6,7 @@ interface TransactionItem {
   userId: string;
   playerName: string;
   username: string;
+  phone?: string;
   title: string;
   meta: string;
   amount: number;
@@ -24,13 +25,76 @@ interface UserItem {
   totalBalance: number;
   playableBalance: number;
   withdrawableBalance: number;
+  totalDeposited?: number;
+  totalWithdrawn?: number;
+  totalWagered?: number;
+  winCount?: number;
+  lossCount?: number;
   status: 'active' | 'restricted' | 'blocked';
   joinedDate: string;
   lastActive: string;
+  invitedBy?: string;
+  referralCount?: number;
+  referralEarnings?: number;
+}
+
+interface GameRoom {
+  id: string;
+  name: string;
+  stake: number;
+  minPlayers: number;
+  maxPlayers: number;
+  activeTickets: number;
+  status: string;
+  prizePool: number;
+}
+
+interface GameConfig {
+  id: string;
+  name: string;
+  icon: string;
+  status: string;
+  activePlayers: number;
+  totalRoundsToday: number;
+  todayTurnover: number;
+  rakePercentage: number;
+  rooms?: GameRoom[];
+  roundIntervalSeconds?: number;
+  rtpPercentage?: number;
+  minBet?: number;
+  maxBet?: number;
+}
+
+interface BroadcastItem {
+  id: string;
+  title: string;
+  message: string;
+  target: string;
+  sentCount: number;
+  status: string;
+  timestamp: string;
+}
+
+interface StaffItem {
+  id: string;
+  name: string;
+  username: string;
+  role: string;
+  email: string;
+  status: string;
+  lastLogin: string;
+}
+
+interface AuditLogItem {
+  id: string;
+  admin: string;
+  action: string;
+  ip: string;
+  timestamp: string;
 }
 
 export const App: React.FC = () => {
-  // ── Hardcoded Authentication State ──
+  // ── Authentication ──
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('gamezone_admin_auth') === 'true';
   });
@@ -38,175 +102,77 @@ export const App: React.FC = () => {
   const [loginPass, setLoginPass] = useState<string>('');
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // ── Active Navigation Section ──
+  // ── Navigation ──
   const [activeSection, setActiveSection] = useState<
-    'overview' | 'payments' | 'users' | 'reports' | 'admins' | 'settings'
+    'overview' | 'games' | 'payments' | 'users' | 'referrals' | 'broadcast' | 'reports' | 'admins' | 'settings'
   >('overview');
 
+  // ── Data State ──
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+  const [usersList, setUsersList] = useState<UserItem[]>([]);
+  const [games, setGames] = useState<GameConfig[]>([]);
+  const [broadcasts, setBroadcasts] = useState<BroadcastItem[]>([]);
+  const [staffList, setStaffList] = useState<StaffItem[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
+
   // ── Payments State ──
-  const [paymentTab, setPaymentTab] = useState<'all' | 'deposit' | 'withdrawal'>('all');
+  const [paymentTab, setPaymentTab] = useState<'all' | 'deposit' | 'withdrawal' | 'pending'>('all');
   const [paymentSearch, setPaymentSearch] = useState<string>('');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all');
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
   const [showNewPaymentModal, setShowNewPaymentModal] = useState<boolean>(false);
 
-  // ── Data State ──
-  const [transactions, setTransactions] = useState<TransactionItem[]>([
-    {
-      id: 'DP-20841',
-      userId: '10284',
-      playerName: 'Abebe T.',
-      username: '@abebe_21',
-      title: 'Deposit via Telebirr',
-      meta: 'SMS: 9A8B7C · 0911002233',
-      amount: 500,
-      currency: 'ETB',
-      type: 'positive',
-      method: 'Telebirr',
-      status: 'pending',
-      timestamp: '09:18',
-    },
-    {
-      id: 'DP-20840',
-      userId: '102941',
-      playerName: 'Mekdes K.',
-      username: '@mekdes7',
-      title: 'Deposit via Telebirr',
-      meta: 'SMS: 7X8Y9Z · 0922334455',
-      amount: 1000,
-      currency: 'ETB',
-      type: 'positive',
-      method: 'Telebirr',
-      status: 'approved',
-      timestamp: '09:12',
-    },
-    {
-      id: 'WD-10921',
-      userId: '102955',
-      playerName: 'Daniel A.',
-      username: '@dani_11',
-      title: 'Withdrawal to CBE',
-      meta: 'Acc: 1000987654321',
-      amount: -1200,
-      currency: 'ETB',
-      type: 'negative',
-      method: 'CBE Birr',
-      status: 'pending',
-      timestamp: '09:07',
-    },
-    {
-      id: 'DP-20838',
-      userId: '102999',
-      playerName: 'Hana M.',
-      username: '@hana22',
-      title: 'Deposit via Telebirr',
-      meta: 'Invalid SMS format',
-      amount: 300,
-      currency: 'ETB',
-      type: 'positive',
-      method: 'Telebirr',
-      status: 'rejected',
-      timestamp: '08:54',
-    },
-    {
-      id: 'WD-10918',
-      userId: '10284',
-      playerName: 'Abebe T.',
-      username: '@abebe_21',
-      title: 'Withdrawal via Telebirr',
-      meta: 'Phone: 0911002233',
-      amount: -450,
-      currency: 'ETB',
-      type: 'negative',
-      method: 'Telebirr',
-      status: 'approved',
-      timestamp: '08:30',
-    },
-  ]);
-
   // ── Users State ──
   const [usersSearch, setUsersSearch] = useState<string>('');
   const [usersStatusFilter, setUsersStatusFilter] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
   const [balanceAdjustAmount, setBalanceAdjustAmount] = useState<string>('');
+  const [balanceAdjustReason, setBalanceAdjustReason] = useState<string>('');
+  const [userDirectMessage, setUserDirectMessage] = useState<string>('');
 
-  const [usersList, setUsersList] = useState<UserItem[]>([
-    {
-      id: '102938',
-      name: 'Bini Eyoel',
-      username: '@bini',
-      phone: '+251911223344',
-      totalBalance: 2450,
-      playableBalance: 1800,
-      withdrawableBalance: 650,
-      status: 'active',
-      joinedDate: 'Sep 03',
-      lastActive: 'Just now',
-    },
-    {
-      id: '102941',
-      name: 'Mekdes K.',
-      username: '@mekdes7',
-      phone: '+251922334455',
-      totalBalance: 820,
-      playableBalance: 500,
-      withdrawableBalance: 320,
-      status: 'active',
-      joinedDate: 'Sep 02',
-      lastActive: '12m ago',
-    },
-    {
-      id: '102955',
-      name: 'Daniel A.',
-      username: '@dani_11',
-      phone: '+251933445566',
-      totalBalance: 3100,
-      playableBalance: 1200,
-      withdrawableBalance: 1900,
-      status: 'restricted',
-      joinedDate: 'Aug 29',
-      lastActive: '1h ago',
-    },
-    {
-      id: '102988',
-      name: 'Yosef T.',
-      username: '@yosef_99',
-      phone: '+251944556677',
-      totalBalance: 4500,
-      playableBalance: 2000,
-      withdrawableBalance: 2500,
-      status: 'active',
-      joinedDate: 'Aug 25',
-      lastActive: '3h ago',
-    },
-  ]);
+  // ── Game Modals ──
+  const [showNewBingoRoomModal, setShowNewBingoRoomModal] = useState<boolean>(false);
 
-  // ── Permissions State ──
+  // ── Broadcast State ──
+  const [broadcastTitle, setBroadcastTitle] = useState<string>('');
+  const [broadcastMessage, setBroadcastMessage] = useState<string>('');
+  const [broadcastTarget, setBroadcastTarget] = useState<string>('All Players');
+
+  // ── Staff Modal ──
+  const [showNewStaffModal, setShowNewStaffModal] = useState<boolean>(false);
+
+  // ── Roles Permissions ──
   const [permissions, setPermissions] = useState({
     superViewUsers: true,
     superManagePayments: true,
+    superManageGames: true,
     superManageAdmins: true,
     superSystemSettings: true,
 
     financeViewUsers: true,
     financeManagePayments: true,
+    financeManageGames: false,
     financeManageAdmins: false,
     financeSystemSettings: false,
 
     supportViewUsers: true,
     supportManagePayments: false,
+    supportManageGames: false,
     supportManageAdmins: false,
     supportSystemSettings: false,
   });
 
-  // ── Settings State ──
+  // ── Settings ──
   const [minDeposit, setMinDeposit] = useState<number>(10);
   const [minWithdraw, setMinWithdraw] = useState<number>(50);
   const [telebirrPhone, setTelebirrPhone] = useState<string>('0911002233');
   const [cbeAccount, setCbeAccount] = useState<string>('1000123456789');
   const [paymentReviewReq, setPaymentReviewReq] = useState<boolean>(true);
   const [maintenanceMode, setMaintenanceMode] = useState<boolean>(false);
+  const [referralBonus, setReferralBonus] = useState<number>(10);
+  const [referralWagerShare, setReferralWagerShare] = useState<number>(5);
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -216,24 +182,35 @@ export const App: React.FC = () => {
     }, 2800);
   };
 
-  // Fetch live backend data if available
+  // Load all initial live data from backend
+  const refreshAllData = async () => {
+    try {
+      const [txRes, usersRes, gamesRes, bcRes, staffRes, logsRes] = await Promise.all([
+        adminApi.getTransactions(),
+        adminApi.getUsers(),
+        adminApi.getGames(),
+        adminApi.getBroadcasts(),
+        adminApi.getStaff(),
+        adminApi.getLogs(),
+      ]);
+
+      if (txRes?.success && Array.isArray(txRes.data)) setTransactions(txRes.data);
+      if (usersRes?.success && Array.isArray(usersRes.data)) setUsersList(usersRes.data);
+      if (gamesRes?.success && Array.isArray(gamesRes.data)) setGames(gamesRes.data);
+      if (bcRes?.success && Array.isArray(bcRes.data)) setBroadcasts(bcRes.data);
+      if (staffRes?.success && Array.isArray(staffRes.data)) setStaffList(staffRes.data);
+      if (logsRes?.success && Array.isArray(logsRes.data)) setAuditLogs(logsRes.data);
+    } catch (e) {
+      console.warn('Could not fetch from backend, using local state:', e);
+    }
+  };
+
   useEffect(() => {
     if (!isAuthenticated) return;
-
-    adminApi.getTransactions().then((res) => {
-      if (res?.success && Array.isArray(res.data)) {
-        setTransactions(res.data);
-      }
-    });
-
-    adminApi.getUsers().then((res) => {
-      if (res?.success && Array.isArray(res.data)) {
-        setUsersList(res.data);
-      }
-    });
+    refreshAllData();
   }, [isAuthenticated]);
 
-  // ── Login Handler ──
+  // ── Login ──
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (
@@ -243,7 +220,7 @@ export const App: React.FC = () => {
       setIsAuthenticated(true);
       localStorage.setItem('gamezone_admin_auth', 'true');
       setLoginError(null);
-      showToast('Welcome to GameZone Admin Console');
+      showToast('Welcome to GameZone Admin Suite');
     } else {
       setLoginError('Invalid administrative username or password.');
     }
@@ -255,31 +232,40 @@ export const App: React.FC = () => {
     setLoginPass('');
   };
 
-  // ── Payment Actions (Approve / Reject) ──
+  // ── Payment Handlers ──
   const handleApproveTransaction = (id: string) => {
     const tx = transactions.find((t) => t.id === id);
     setTransactions((prev) =>
       prev.map((t) => (t.id === id ? { ...t, status: 'approved' as const } : t))
     );
-    adminApi.approveTransaction(id, tx ? tx.amount : 0);
-    showToast(`Transaction #${id} approved successfully`);
-    if (selectedTx?.id === id) {
-      setSelectedTx(null);
-    }
+    adminApi.approveTransaction(id, tx ? Math.abs(tx.amount) : 0);
+    showToast(`Transaction #${id} approved & wallet credited`);
+    if (selectedTx?.id === id) setSelectedTx(null);
   };
 
   const handleRejectTransaction = (id: string) => {
     setTransactions((prev) =>
       prev.map((t) => (t.id === id ? { ...t, status: 'rejected' as const } : t))
     );
-    adminApi.rejectTransaction(id, 'Unverified SMS / receipt');
+    adminApi.rejectTransaction(id, 'Unverified SMS receipt / mismatched reference');
     showToast(`Transaction #${id} rejected`);
-    if (selectedTx?.id === id) {
-      setSelectedTx(null);
-    }
+    if (selectedTx?.id === id) setSelectedTx(null);
   };
 
-  // ── User Actions ──
+  const handleBatchApprovePending = () => {
+    const pendingIds = transactions.filter((t) => t.status === 'pending').map((t) => t.id);
+    if (pendingIds.length === 0) {
+      showToast('No pending transactions to approve');
+      return;
+    }
+    setTransactions((prev) =>
+      prev.map((t) => (t.status === 'pending' ? { ...t, status: 'approved' as const } : t))
+    );
+    pendingIds.forEach((id) => adminApi.approveTransaction(id));
+    showToast(`Batch approved ${pendingIds.length} pending transactions`);
+  };
+
+  // ── User Handlers ──
   const handleToggleUserStatus = (userId: string, newStatus: 'active' | 'restricted' | 'blocked') => {
     setUsersList((prev) =>
       prev.map((u) => (u.id === userId ? { ...u, status: newStatus } : u))
@@ -308,13 +294,84 @@ export const App: React.FC = () => {
       )
     );
 
-    adminApi.updateUser(selectedUser.id, { balanceAdjustment: adjust });
+    adminApi.updateUser(selectedUser.id, { balanceAdjustment: adjust, reason: balanceAdjustReason });
     showToast(`Player #${selectedUser.id} balance adjusted by ${adjust > 0 ? '+' : ''}${adjust} ETB`);
-    setSelectedUser(null);
     setBalanceAdjustAmount('');
+    setBalanceAdjustReason('');
+    setSelectedUser(null);
   };
 
-  // ── CSV Export ──
+  const handleSendUserDirectMsg = () => {
+    if (!selectedUser || !userDirectMessage) return;
+    adminApi.sendBroadcast({
+      title: `Direct message to #${selectedUser.id}`,
+      message: userDirectMessage,
+      target: `Player #${selectedUser.id}`,
+    });
+    showToast(`Telegram message sent to ${selectedUser.username}`);
+    setUserDirectMessage('');
+  };
+
+  // ── Game Handlers ──
+  const handleToggleGameStatus = (gameId: string) => {
+    setGames((prev) =>
+      prev.map((g) => (g.id === gameId ? { ...g, status: g.status === 'active' ? 'paused' : 'active' } : g))
+    );
+    adminApi.toggleGame(gameId);
+    showToast(`Game ${gameId.toUpperCase()} status updated`);
+  };
+
+  const handleCreateBingoRoom = (e: React.FormEvent) => {
+    e.preventDefault();
+    const form = e.target as any;
+    const name = form.roomName.value;
+    const stake = Number(form.stake.value);
+    const minPlayers = Number(form.minPlayers.value);
+    const maxPlayers = Number(form.maxPlayers.value);
+
+    const newRoom: GameRoom = {
+      id: `room-${Date.now().toString().slice(-4)}`,
+      name,
+      stake,
+      minPlayers,
+      maxPlayers,
+      activeTickets: 0,
+      status: 'active',
+      prizePool: 0,
+    };
+
+    setGames((prev) =>
+      prev.map((g) => (g.id === 'bingo' ? { ...g, rooms: [...(g.rooms || []), newRoom] } : g))
+    );
+
+    adminApi.createBingoRoom({ name, stake, minPlayers, maxPlayers });
+    setShowNewBingoRoomModal(false);
+    showToast(`Created Bingo room: ${name} (${stake} ETB)`);
+  };
+
+  // ── Broadcast Handler ──
+  const handleSendBroadcast = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastTitle || !broadcastMessage) return;
+
+    const newBc: BroadcastItem = {
+      id: `bc-${Date.now().toString().slice(-4)}`,
+      title: broadcastTitle,
+      message: broadcastMessage,
+      target: broadcastTarget,
+      sentCount: broadcastTarget === 'Active Players' ? 6820 : 18492,
+      status: 'sent',
+      timestamp: 'Just now',
+    };
+
+    setBroadcasts((prev) => [newBc, ...prev]);
+    adminApi.sendBroadcast({ title: broadcastTitle, message: broadcastMessage, target: broadcastTarget });
+    showToast(`Broadcast sent to ${newBc.sentCount} Telegram players`);
+    setBroadcastTitle('');
+    setBroadcastMessage('');
+  };
+
+  // ── CSV Export Helper ──
   const exportCSV = (filename: string, headers: string[], rows: (string | number)[][]) => {
     const csvContent =
       'data:text/csv;charset=utf-8,' +
@@ -329,10 +386,11 @@ export const App: React.FC = () => {
     showToast(`Exported ${filename}.csv`);
   };
 
-  // Filtered Payments
+  // Filtering
   const filteredTransactions = transactions.filter((t) => {
     if (paymentTab === 'deposit' && t.type !== 'positive') return false;
     if (paymentTab === 'withdrawal' && t.type !== 'negative') return false;
+    if (paymentTab === 'pending' && t.status !== 'pending') return false;
     if (paymentStatusFilter !== 'all' && t.status !== paymentStatusFilter) return false;
     if (paymentMethodFilter !== 'all' && t.method.toLowerCase() !== paymentMethodFilter.toLowerCase())
       return false;
@@ -348,7 +406,6 @@ export const App: React.FC = () => {
     return true;
   });
 
-  // Filtered Users
   const filteredUsers = usersList.filter((u) => {
     if (usersStatusFilter !== 'all' && u.status !== usersStatusFilter) return false;
     if (usersSearch) {
@@ -374,7 +431,7 @@ export const App: React.FC = () => {
           <div className="admin-login-brand">
             GAME<span>ZONE</span>
           </div>
-          <div className="admin-login-badge">Administrative Portal</div>
+          <div className="admin-login-badge">Standalone Admin Console</div>
 
           <form onSubmit={handleLogin}>
             <div className="admin-input-group">
@@ -429,42 +486,67 @@ export const App: React.FC = () => {
         >
           <span>◉</span> Overview
         </button>
+
+        <button
+          className={`admin-nav-btn ${activeSection === 'games' ? 'active' : ''}`}
+          onClick={() => setActiveSection('games')}
+        >
+          <span>🎮</span> Game Control
+        </button>
+
         <button
           className={`admin-nav-btn ${activeSection === 'payments' ? 'active' : ''}`}
           onClick={() => setActiveSection('payments')}
         >
-          <span>▣</span> Payments
+          <span>▣</span> Cashier & Treasury
           {pendingDepositsCount + pendingWithdrawalsCount > 0 && (
             <span className="admin-nav-badge">
               {pendingDepositsCount + pendingWithdrawalsCount}
             </span>
           )}
         </button>
+
         <button
           className={`admin-nav-btn ${activeSection === 'users' ? 'active' : ''}`}
           onClick={() => setActiveSection('users')}
         >
-          <span>♙</span> Users
+          <span>♙</span> Player CRM
         </button>
+
+        <button
+          className={`admin-nav-btn ${activeSection === 'referrals' ? 'active' : ''}`}
+          onClick={() => setActiveSection('referrals')}
+        >
+          <span>🎁</span> Affiliate Control
+        </button>
+
+        <button
+          className={`admin-nav-btn ${activeSection === 'broadcast' ? 'active' : ''}`}
+          onClick={() => setActiveSection('broadcast')}
+        >
+          <span>📢</span> Bot Broadcasts
+        </button>
+
         <button
           className={`admin-nav-btn ${activeSection === 'reports' ? 'active' : ''}`}
           onClick={() => setActiveSection('reports')}
         >
-          <span>▤</span> Reports
+          <span>▤</span> Financial BI
         </button>
 
-        <div className="admin-nav-label">Administration</div>
+        <div className="admin-nav-label">Security & Config</div>
         <button
           className={`admin-nav-btn ${activeSection === 'admins' ? 'active' : ''}`}
           onClick={() => setActiveSection('admins')}
         >
-          <span>◆</span> Admin Control
+          <span>◆</span> Staff & Access
         </button>
+
         <button
           className={`admin-nav-btn ${activeSection === 'settings' ? 'active' : ''}`}
           onClick={() => setActiveSection('settings')}
         >
-          <span>⚙</span> Settings
+          <span>⚙</span> Platform Settings
         </button>
 
         <div className="admin-sidebar-footer">
@@ -482,11 +564,11 @@ export const App: React.FC = () => {
             <div className="admin-page-title">
               {activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
             </div>
-            <div className="admin-crumb">GameZone / {activeSection}</div>
+            <div className="admin-crumb">GameZone Admin / {activeSection}</div>
           </div>
 
           <div className="admin-top-right">
-            <span className="admin-status active">● Live</span>
+            <span className="admin-status active">● Live Gateway</span>
             <span style={{ fontSize: '11px', color: '#8490a5' }}>Super Admin</span>
             <div className="admin-avatar">BA</div>
           </div>
@@ -499,22 +581,24 @@ export const App: React.FC = () => {
             <section>
               <div className="admin-head">
                 <div>
-                  <h1>Good morning, Admin</h1>
-                  <p>Here’s real-time operational activity across GameZone today.</p>
+                  <h1>Executive Operations Hub</h1>
+                  <p>Real-time player activity, cash flow turnover, and live game room status.</p>
                 </div>
-                <button
-                  className="admin-btn"
-                  onClick={() => showToast('Live operational data refreshed')}
-                >
-                  ↻ Refresh Data
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="admin-btn primary" onClick={() => setActiveSection('broadcast')}>
+                    📢 Send Telegram Broadcast
+                  </button>
+                  <button className="admin-btn" onClick={refreshAllData}>
+                    ↻ Refresh Live Data
+                  </button>
+                </div>
               </div>
 
-              {/* Stat Grid */}
+              {/* 6 KPI Cards Grid */}
               <div className="admin-grid-4">
                 <div className="admin-card">
                   <div className="admin-stat-top">
-                    Total Users <span className="admin-stat-icon">♙</span>
+                    Total Players <span className="admin-stat-icon">♙</span>
                   </div>
                   <div className="admin-stat-value">18,492</div>
                   <div className="admin-stat-delta up">+4.8% this month</div>
@@ -522,10 +606,10 @@ export const App: React.FC = () => {
 
                 <div className="admin-card">
                   <div className="admin-stat-top">
-                    Online Now <span className="admin-stat-icon">●</span>
+                    Online Concurrent <span className="admin-stat-icon">●</span>
                   </div>
                   <div className="admin-stat-value">247</div>
-                  <div className="admin-stat-delta up">+18 in last hour</div>
+                  <div className="admin-stat-delta up">+18 in live rooms</div>
                 </div>
 
                 <div className="admin-card">
@@ -548,11 +632,50 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
+              {/* Secondary Metric Strip */}
+              <div className="admin-grid-3" style={{ marginBottom: '18px' }}>
+                <div className="admin-card" style={{ borderColor: 'rgba(34, 211, 238, 0.2)' }}>
+                  <div style={{ color: '#8490a5', fontSize: '11px' }}>Gross Gaming Revenue (GGR)</div>
+                  <div style={{ fontSize: '24px', fontWeight: 800, marginTop: '6px', color: '#22d3ee' }}>
+                    133,500 ETB
+                  </div>
+                  <div style={{ color: '#8490a5', fontSize: '10.5px', marginTop: '4px' }}>
+                    Turnover across Bingo, Keno & Ludo
+                  </div>
+                </div>
+
+                <div className="admin-card" style={{ borderColor: 'rgba(52, 211, 153, 0.2)' }}>
+                  <div style={{ color: '#8490a5', fontSize: '11px' }}>Net House Edge Margin</div>
+                  <div style={{ fontSize: '24px', fontWeight: 800, marginTop: '6px', color: '#34d399' }}>
+                    14,200 ETB
+                  </div>
+                  <div style={{ color: '#8490a5', fontSize: '10.5px', marginTop: '4px' }}>
+                    Platform commission profit (Avg: ~10.6%)
+                  </div>
+                </div>
+
+                <div className="admin-card" style={{ borderColor: 'rgba(251, 191, 36, 0.2)' }}>
+                  <div style={{ color: '#8490a5', fontSize: '11px' }}>Pending Cashier Queue</div>
+                  <div style={{ fontSize: '24px', fontWeight: 800, marginTop: '6px', color: '#fbbf24' }}>
+                    {pendingDepositsCount + pendingWithdrawalsCount} Requests
+                  </div>
+                  <div style={{ color: '#8490a5', fontSize: '10.5px', marginTop: '4px' }}>
+                    <button
+                      className="admin-btn"
+                      style={{ padding: '4px 8px', fontSize: '11px', marginTop: '4px' }}
+                      onClick={() => setActiveSection('payments')}
+                    >
+                      Open Cashier Queue →
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* Chart & Live Activity */}
               <div className="admin-grid-2">
                 <div className="admin-card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 700 }}>Payment Activity (ETB Volume)</span>
+                    <span style={{ fontSize: '13px', fontWeight: 700 }}>Real-Time Hourly Turnover (ETB)</span>
                     <span style={{ fontSize: '11px', color: '#8490a5' }}>Today</span>
                   </div>
 
@@ -578,8 +701,8 @@ export const App: React.FC = () => {
 
                 <div className="admin-card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 700 }}>Live Feed</span>
-                    <span className="admin-status active">LIVE</span>
+                    <span style={{ fontSize: '13px', fontWeight: 700 }}>Live Activity Feed</span>
+                    <span className="admin-status active">STREAM</span>
                   </div>
 
                   <div className="admin-activity-item">
@@ -605,9 +728,9 @@ export const App: React.FC = () => {
                   <div className="admin-activity-item">
                     <i className="admin-dot"></i>
                     <div>
-                      <strong style={{ fontSize: '12px' }}>New player joined via Telegram</strong>
+                      <strong style={{ fontSize: '12px' }}>Bingo Live Room #01 Won</strong>
                       <small style={{ display: 'block', color: '#8490a5', fontSize: '10.5px' }}>
-                        @abebe_21 · Invited by #102938
+                        Winner: @mekdes7 · Pot: 630 ETB
                       </small>
                     </div>
                   </div>
@@ -615,9 +738,9 @@ export const App: React.FC = () => {
                   <div className="admin-activity-item">
                     <i className="admin-dot"></i>
                     <div>
-                      <strong style={{ fontSize: '12px' }}>Bingo Live Room #04 Jackpot Won</strong>
+                      <strong style={{ fontSize: '12px' }}>New player joined via Telegram</strong>
                       <small style={{ display: 'block', color: '#8490a5', fontSize: '10.5px' }}>
-                        Winner: @mekdes7 · Pot: 3,450 ETB
+                        @abebe_21 · Invited by #102938
                       </small>
                     </div>
                   </div>
@@ -626,26 +749,127 @@ export const App: React.FC = () => {
             </section>
           )}
 
-          {/* ═════════ 2. PAYMENTS SECTION ═════════ */}
+          {/* ═════════ 2. GAME MANAGEMENT & LIVE ROOMS ═════════ */}
+          {activeSection === 'games' && (
+            <section>
+              <div className="admin-head">
+                <div>
+                  <h1>Game Management & Room Configuration</h1>
+                  <p>Configure live game rooms, ticket pricing, house commissions, and RTP settings.</p>
+                </div>
+                <button
+                  className="admin-btn primary"
+                  onClick={() => setShowNewBingoRoomModal(true)}
+                >
+                  + Add Bingo Room
+                </button>
+              </div>
+
+              {/* Games Grid */}
+              <div className="admin-grid-3">
+                {games.map((g) => (
+                  <div key={g.id} className="admin-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '22px' }}>{g.icon}</span>
+                        <div>
+                          <strong style={{ fontSize: '15px' }}>{g.name}</strong>
+                          <div style={{ fontSize: '11px', color: '#8490a5' }}>
+                            {g.activePlayers} Players Online
+                          </div>
+                        </div>
+                      </div>
+                      <span className={`admin-status ${g.status}`}>{g.status}</span>
+                    </div>
+
+                    <div style={{ background: '#0b1220', padding: '12px', borderRadius: '10px', marginBottom: '14px', fontSize: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                        <span style={{ color: '#8490a5' }}>Today's Turnover:</span>
+                        <strong style={{ color: '#22d3ee' }}>{g.todayTurnover.toLocaleString()} ETB</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                        <span style={{ color: '#8490a5' }}>Rounds Played:</span>
+                        <span>{g.totalRoundsToday}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#8490a5' }}>Platform Rake / Edge:</span>
+                        <span style={{ color: '#34d399', fontWeight: 700 }}>{g.rakePercentage}%</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        className={`admin-btn ${g.status === 'active' ? 'danger' : 'success'}`}
+                        style={{ width: '100%', justifyContent: 'center' }}
+                        onClick={() => handleToggleGameStatus(g.id)}
+                      >
+                        {g.status === 'active' ? '⏸ Pause Game' : '▶ Resume Game'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bingo Live Rooms Detailed Management */}
+              <div className="admin-card" style={{ marginTop: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '15px', fontWeight: 700 }}>🎱 Bingo Live Active Room Lobbies</h3>
+                    <p style={{ fontSize: '11.5px', color: '#8490a5' }}>Live tickets sold and real-time jackpot prize pools.</p>
+                  </div>
+                </div>
+
+                <div className="admin-rooms-grid">
+                  {games.find((g) => g.id === 'bingo')?.rooms?.map((room) => (
+                    <div key={room.id} className="admin-room-card">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <strong>{room.name}</strong>
+                        <span className={`admin-status ${room.status}`}>{room.status}</span>
+                      </div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#22d3ee', margin: '6px 0' }}>
+                        {room.stake} ETB <small style={{ fontSize: '11px', color: '#8490a5' }}>/ cartela</small>
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: '#8490a5', marginBottom: '10px' }}>
+                        <div>Active Tickets Sold: <strong style={{ color: '#fff' }}>{room.activeTickets}</strong></div>
+                        <div>Current Prize Pool: <strong style={{ color: '#34d399' }}>{room.prizePool} ETB</strong></div>
+                        <div>Capacity: {room.minPlayers} - {room.maxPlayers} players</div>
+                      </div>
+                      <button
+                        className="admin-btn"
+                        style={{ width: '100%', justifyContent: 'center', fontSize: '11.5px' }}
+                        onClick={() => showToast(`Room ${room.name} settings updated`)}
+                      >
+                        ⚙ Configure Stakes
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ═════════ 3. PAYMENTS & CASHIER SUITE ═════════ */}
           {activeSection === 'payments' && (
             <section>
               <div className="admin-head">
                 <div>
-                  <h1>Payments & Treasury</h1>
-                  <p>Review, verify, and approve incoming deposits and pending withdrawals.</p>
+                  <h1>Cashier & Treasury Management</h1>
+                  <p>Process pending SMS receipts, approve payouts, and manage gateway liquidity.</p>
                 </div>
-                <button
-                  className="admin-btn primary"
-                  onClick={() => setShowNewPaymentModal(true)}
-                >
-                  + Payment Action
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="admin-btn success" onClick={handleBatchApprovePending}>
+                    ✓ Batch Approve All Pending
+                  </button>
+                  <button className="admin-btn primary" onClick={() => setShowNewPaymentModal(true)}>
+                    + Manual Payment Action
+                  </button>
+                </div>
               </div>
 
-              {/* Payment Metric Cards */}
+              {/* Status Summary */}
               <div className="admin-grid-3">
                 <div className="admin-card" style={{ borderColor: 'rgba(251, 191, 36, 0.2)' }}>
-                  <div style={{ color: '#8490a5', fontSize: '11px' }}>Pending Deposits</div>
+                  <div style={{ color: '#8490a5', fontSize: '11px' }}>Pending Deposits (Unverified SMS)</div>
                   <div style={{ fontSize: '24px', fontWeight: 800, marginTop: '8px' }}>
                     {transactions
                       .filter((t) => t.type === 'positive' && t.status === 'pending')
@@ -658,7 +882,7 @@ export const App: React.FC = () => {
                 </div>
 
                 <div className="admin-card" style={{ borderColor: 'rgba(251, 113, 133, 0.2)' }}>
-                  <div style={{ color: '#8490a5', fontSize: '11px' }}>Pending Withdrawals</div>
+                  <div style={{ color: '#8490a5', fontSize: '11px' }}>Pending Payout Requests</div>
                   <div style={{ fontSize: '24px', fontWeight: 800, marginTop: '8px' }}>
                     {Math.abs(
                       transactions
@@ -668,7 +892,7 @@ export const App: React.FC = () => {
                     ETB
                   </div>
                   <div style={{ color: '#8490a5', fontSize: '10.5px', marginTop: '4px' }}>
-                    {pendingWithdrawalsCount} payout requests
+                    {pendingWithdrawalsCount} withdrawal payout requests
                   </div>
                 </div>
 
@@ -678,7 +902,7 @@ export const App: React.FC = () => {
                     128,270 ETB
                   </div>
                   <div style={{ color: '#8490a5', fontSize: '10.5px', marginTop: '4px' }}>
-                    119 transactions completed
+                    119 transactions processed
                   </div>
                 </div>
               </div>
@@ -689,7 +913,13 @@ export const App: React.FC = () => {
                   className={paymentTab === 'all' ? 'active' : ''}
                   onClick={() => setPaymentTab('all')}
                 >
-                  All Transactions ({transactions.length})
+                  All ({transactions.length})
+                </button>
+                <button
+                  className={paymentTab === 'pending' ? 'active' : ''}
+                  onClick={() => setPaymentTab('pending')}
+                >
+                  Pending Review ({pendingDepositsCount + pendingWithdrawalsCount})
                 </button>
                 <button
                   className={paymentTab === 'deposit' ? 'active' : ''}
@@ -710,7 +940,7 @@ export const App: React.FC = () => {
                 <input
                   type="text"
                   className="admin-search"
-                  placeholder="Search player, transaction ID, phone..."
+                  placeholder="Search player name, @username, transaction ID, SMS reference..."
                   value={paymentSearch}
                   onChange={(e) => setPaymentSearch(e.target.value)}
                 />
@@ -740,13 +970,14 @@ export const App: React.FC = () => {
                 <table className="admin-table">
                   <thead>
                     <tr>
-                      <th>Transaction</th>
+                      <th>Transaction ID</th>
                       <th>Player</th>
                       <th>Amount</th>
-                      <th>Method</th>
+                      <th>Gateway</th>
+                      <th>Reference / SMS Proof</th>
                       <th>Status</th>
                       <th>Time</th>
-                      <th>Actions</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -769,6 +1000,7 @@ export const App: React.FC = () => {
                           {tx.amount} ETB
                         </td>
                         <td>{tx.method}</td>
+                        <td style={{ color: '#22d3ee', fontSize: '11.5px' }}>{tx.meta}</td>
                         <td>
                           <span className={`admin-status ${tx.status}`}>{tx.status}</span>
                         </td>
@@ -807,33 +1039,35 @@ export const App: React.FC = () => {
             </section>
           )}
 
-          {/* ═════════ 3. USERS SECTION ═════════ */}
+          {/* ═════════ 4. PLAYER CRM & RISK MANAGEMENT ═════════ */}
           {activeSection === 'users' && (
             <section>
               <div className="admin-head">
                 <div>
-                  <h1>Player Directory</h1>
-                  <p>View registered Telegram accounts, check wallet balances, and manage risk.</p>
+                  <h1>Player CRM & Account Management</h1>
+                  <p>Inspect 360-degree player profiles, balances, betting records, and risk scores.</p>
                 </div>
                 <button
                   className="admin-btn"
                   onClick={() =>
                     exportCSV(
-                      'gamezone-players',
-                      ['ID', 'Name', 'Username', 'Phone', 'TotalBalance', 'Status', 'JoinedDate'],
+                      'gamezone-players-crm',
+                      ['ID', 'Name', 'Username', 'Phone', 'TotalBalance', 'Deposited', 'Withdrawn', 'Wagered', 'Status'],
                       usersList.map((u) => [
                         u.id,
                         u.name,
                         u.username,
                         u.phone,
                         u.totalBalance,
+                        u.totalDeposited || 0,
+                        u.totalWithdrawn || 0,
+                        u.totalWagered || 0,
                         u.status,
-                        u.joinedDate,
                       ])
                     )
                   }
                 >
-                  📥 Export CSV
+                  📥 Export Player Ledger (CSV)
                 </button>
               </div>
 
@@ -842,7 +1076,7 @@ export const App: React.FC = () => {
                 <input
                   type="text"
                   className="admin-search"
-                  placeholder="Search name, @username, Player ID, phone..."
+                  placeholder="Search player name, @username, Telegram ID, phone number..."
                   value={usersSearch}
                   onChange={(e) => setUsersSearch(e.target.value)}
                 />
@@ -853,7 +1087,7 @@ export const App: React.FC = () => {
                 >
                   <option value="all">All Accounts</option>
                   <option value="active">Active</option>
-                  <option value="restricted">Restricted</option>
+                  <option value="restricted">Restricted (Flagged)</option>
                   <option value="blocked">Blocked</option>
                 </select>
               </div>
@@ -866,12 +1100,12 @@ export const App: React.FC = () => {
                       <th>Player</th>
                       <th>Telegram ID</th>
                       <th>Total Balance</th>
-                      <th>Playable</th>
-                      <th>Withdrawable</th>
-                      <th>Status</th>
+                      <th>Total Deposited</th>
+                      <th>Total Withdrawn</th>
+                      <th>Wagered</th>
+                      <th>Risk Status</th>
                       <th>Joined</th>
-                      <th>Last Active</th>
-                      <th>Actions</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -890,19 +1124,19 @@ export const App: React.FC = () => {
                         </td>
                         <td>#{user.id}</td>
                         <td style={{ fontWeight: 700, color: '#22d3ee' }}>{user.totalBalance} ETB</td>
-                        <td>{user.playableBalance} ETB</td>
-                        <td>{user.withdrawableBalance} ETB</td>
+                        <td style={{ color: '#34d399' }}>+{user.totalDeposited || 0} ETB</td>
+                        <td style={{ color: '#fb7185' }}>-{user.totalWithdrawn || 0} ETB</td>
+                        <td>{user.totalWagered || 0} ETB</td>
                         <td>
                           <span className={`admin-status ${user.status}`}>{user.status}</span>
                         </td>
                         <td style={{ color: '#8490a5' }}>{user.joinedDate}</td>
-                        <td style={{ color: '#8490a5' }}>{user.lastActive}</td>
                         <td>
                           <button
                             className="admin-btn primary"
                             onClick={() => setSelectedUser(user)}
                           >
-                            Manage
+                            360° Profile
                           </button>
                         </td>
                       </tr>
@@ -913,35 +1147,242 @@ export const App: React.FC = () => {
             </section>
           )}
 
-          {/* ═════════ 4. REPORTS SECTION ═════════ */}
+          {/* ═════════ 5. AFFILIATE & REFERRAL CONTROL ═════════ */}
+          {activeSection === 'referrals' && (
+            <section>
+              <div className="admin-head">
+                <div>
+                  <h1>Affiliate & Referral Control Center</h1>
+                  <p>Track viral growth loops, promoter payouts, and referral commission rules.</p>
+                </div>
+                <button
+                  className="admin-btn primary"
+                  onClick={() => showToast('Referral commission payout batch triggered')}
+                >
+                  💸 Trigger Referral Payouts
+                </button>
+              </div>
+
+              {/* Referral KPIs */}
+              <div className="admin-grid-3">
+                <div className="admin-card">
+                  <div className="admin-stat-top">Total Commission Paid</div>
+                  <div className="admin-stat-value" style={{ color: '#34d399' }}>48,200 ETB</div>
+                  <div className="admin-stat-delta up">Paid out to 412 promoters</div>
+                </div>
+
+                <div className="admin-card">
+                  <div className="admin-stat-top">Invited Players</div>
+                  <div className="admin-stat-value">5,840</div>
+                  <div className="admin-stat-delta up">31.5% of platform player base</div>
+                </div>
+
+                <div className="admin-card">
+                  <div className="admin-stat-top">Promoter Conversion Rate</div>
+                  <div className="admin-stat-value">64.2%</div>
+                  <div className="admin-stat-delta up">Deposited within 48h of invite</div>
+                </div>
+              </div>
+
+              {/* Top Affiliates Leaderboard */}
+              <div className="admin-card" style={{ marginTop: '16px' }}>
+                <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>
+                  🏆 Top Affiliate Promoters Leaderboard
+                </div>
+
+                <div className="admin-table-wrap">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Rank</th>
+                        <th>Promoter</th>
+                        <th>Telegram ID</th>
+                        <th>Invited Friends</th>
+                        <th>Total Volume Generated</th>
+                        <th>Commission Earned</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>🥇 #1</td>
+                        <td><strong>Bini Eyoel</strong> (@bini)</td>
+                        <td>#102938</td>
+                        <td>124 Players</td>
+                        <td>340,000 ETB</td>
+                        <td style={{ color: '#34d399', fontWeight: 700 }}>2,450 ETB</td>
+                        <td><button className="admin-btn" onClick={() => showToast('Promoter bonus sent')}>+ Bonus</button></td>
+                      </tr>
+                      <tr>
+                        <td>🥈 #2</td>
+                        <td><strong>Yosef T.</strong> (@yosef_99)</td>
+                        <td>#102988</td>
+                        <td>88 Players</td>
+                        <td>210,000 ETB</td>
+                        <td style={{ color: '#34d399', fontWeight: 700 }}>1,840 ETB</td>
+                        <td><button className="admin-btn" onClick={() => showToast('Promoter bonus sent')}>+ Bonus</button></td>
+                      </tr>
+                      <tr>
+                        <td>🥉 #3</td>
+                        <td><strong>Mekdes K.</strong> (@mekdes7)</td>
+                        <td>#102941</td>
+                        <td>42 Players</td>
+                        <td>115,000 ETB</td>
+                        <td style={{ color: '#34d399', fontWeight: 700 }}>820 ETB</td>
+                        <td><button className="admin-btn" onClick={() => showToast('Promoter bonus sent')}>+ Bonus</button></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Referral Commission Rules */}
+              <div className="admin-card" style={{ marginTop: '16px' }}>
+                <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>
+                  ⚙ Commission Rule Parameters
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="admin-input-group">
+                    <label>Instant Bonus Per Invited Friend (ETB)</label>
+                    <input
+                      type="number"
+                      value={referralBonus}
+                      onChange={(e) => setReferralBonus(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="admin-input-group">
+                    <label>Turnover Rev-Share % On Friend Bets</label>
+                    <input
+                      type="number"
+                      value={referralWagerShare}
+                      onChange={(e) => setReferralWagerShare(Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+                <button
+                  className="admin-btn primary"
+                  onClick={() => showToast('Referral rules updated')}
+                >
+                  Save Referral Rules
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* ═════════ 6. TELEGRAM BROADCAST CENTER ═════════ */}
+          {activeSection === 'broadcast' && (
+            <section>
+              <div className="admin-head">
+                <div>
+                  <h1>Telegram Bot Broadcast Center</h1>
+                  <p>Send instant push notifications and promo announcements to all Telegram users.</p>
+                </div>
+                <span className="admin-status active">🤖 @bingox2019_bot Active</span>
+              </div>
+
+              <div className="admin-grid-2">
+                {/* Broadcast Form */}
+                <div className="admin-card">
+                  <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>
+                    📢 Compose Broadcast Announcement
+                  </div>
+
+                  <form onSubmit={handleSendBroadcast}>
+                    <div className="admin-input-group">
+                      <label>Target Audience</label>
+                      <select
+                        className="admin-select"
+                        style={{ width: '100%' }}
+                        value={broadcastTarget}
+                        onChange={(e) => setBroadcastTarget(e.target.value)}
+                      >
+                        <option value="All Players">All Registered Players (18,492 users)</option>
+                        <option value="Active Players">Active Deposited Players (6,820 users)</option>
+                        <option value="VIP Players">VIP & High Rollers (412 users)</option>
+                      </select>
+                    </div>
+
+                    <div className="admin-input-group">
+                      <label>Announcement Headline</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 🔥 Weekend 50,000 ETB Jackpot Tournament!"
+                        value={broadcastTitle}
+                        onChange={(e) => setBroadcastTitle(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="admin-input-group">
+                      <label>Message Body (Telegram Bot Markdown / Text)</label>
+                      <textarea
+                        placeholder="Type announcement message here..."
+                        value={broadcastMessage}
+                        onChange={(e) => setBroadcastMessage(e.target.value)}
+                        required
+                        style={{ minHeight: '120px' }}
+                      />
+                    </div>
+
+                    <button type="submit" className="admin-btn primary" style={{ width: '100%', justifyContent: 'center' }}>
+                      🚀 Broadcast to Telegram Bot Now
+                    </button>
+                  </form>
+                </div>
+
+                {/* Broadcast History */}
+                <div className="admin-card">
+                  <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>
+                    📜 Recent Broadcast History
+                  </div>
+
+                  {broadcasts.map((bc) => (
+                    <div key={bc.id} className="admin-activity-item" style={{ flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <strong style={{ fontSize: '13px' }}>{bc.title}</strong>
+                        <span className="admin-status approved">{bc.status}</span>
+                      </div>
+                      <p style={{ fontSize: '11.5px', color: '#cbd5e1', margin: '4px 0' }}>{bc.message}</p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#8490a5' }}>
+                        <span>Target: {bc.target} ({bc.sentCount.toLocaleString()} delivered)</span>
+                        <span>{bc.timestamp}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ═════════ 7. REPORTS & FINANCIAL BI ═════════ */}
           {activeSection === 'reports' && (
             <section>
               <div className="admin-head">
                 <div>
-                  <h1>Financial Reports & Ledgers</h1>
-                  <p>Comprehensive 30-day accounting metrics and audit downloads.</p>
+                  <h1>Financial Accounting & BI Reports</h1>
+                  <p>Comprehensive Gross Gaming Revenue, turnover ledgers, and download exports.</p>
                 </div>
                 <button
                   className="admin-btn primary"
                   onClick={() =>
                     exportCSV(
-                      'gamezone-financial-summary',
-                      ['Metric', 'Value', 'Currency', 'Period'],
+                      'gamezone-complete-financials',
+                      ['Metric', 'Amount (ETB)', 'Period', 'Status'],
                       [
-                        ['Deposit Volume', '1840000', 'ETB', '30 Days'],
-                        ['Withdrawal Volume', '926000', 'ETB', '30 Days'],
-                        ['Net Margin', '914000', 'ETB', '30 Days'],
-                        ['Total Completed Transactions', '8421', 'Count', '30 Days'],
-                        ['Active Gaming Players', '6820', 'Users', '30 Days'],
+                        ['Gross Deposit Volume', '1840000', '30 Days', 'Verified'],
+                        ['Gross Withdrawal Volume', '926000', '30 Days', 'Verified'],
+                        ['Gross Gaming Turnover', '4250000', '30 Days', 'Completed'],
+                        ['Platform Net Margin', '914000', '30 Days', 'Realized'],
+                        ['Affiliate Commission Paid', '48200', '30 Days', 'Settled'],
                       ]
                     )
                   }
                 >
-                  📥 Export Complete Report
+                  📥 Export 30-Day Master Financial Ledger
                 </button>
               </div>
 
-              {/* 30-Day Metrics Grid */}
               <div className="admin-grid-4">
                 <div className="admin-card">
                   <div className="admin-stat-top">Deposit Volume</div>
@@ -962,116 +1403,120 @@ export const App: React.FC = () => {
                 </div>
 
                 <div className="admin-card">
-                  <div className="admin-stat-top">Active Players</div>
+                  <div className="admin-stat-top">Active Unique Gamers</div>
                   <div className="admin-stat-value">6,820</div>
                   <div className="admin-stat-delta up">Last 30 days</div>
                 </div>
               </div>
 
-              {/* Available Reports */}
+              {/* Game Turnover Breakdown */}
               <div className="admin-card" style={{ marginTop: '16px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px' }}>
-                  Available Exportable Ledgers
+                <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>
+                  📊 Game Turnover & Gross Gaming Revenue Breakdown
                 </div>
 
-                <div className="admin-activity-item" style={{ alignItems: 'center' }}>
-                  <i className="admin-dot"></i>
-                  <div>
-                    <strong>Deposit Ledger</strong>
-                    <small style={{ display: 'block', color: '#8490a5' }}>
-                      Complete deposit transactions, bank references, and approval history
-                    </small>
-                  </div>
-                  <button
-                    className="admin-btn"
-                    style={{ marginLeft: 'auto' }}
-                    onClick={() =>
-                      exportCSV(
-                        'deposit-ledger',
-                        ['TxID', 'Player', 'Amount', 'Method', 'Status', 'Time'],
-                        transactions
-                          .filter((t) => t.type === 'positive')
-                          .map((t) => [t.id, t.playerName, t.amount, t.method, t.status, t.timestamp])
-                      )
-                    }
-                  >
-                    Export CSV
-                  </button>
-                </div>
-
-                <div className="admin-activity-item" style={{ alignItems: 'center' }}>
-                  <i className="admin-dot"></i>
-                  <div>
-                    <strong>Withdrawal Ledger</strong>
-                    <small style={{ display: 'block', color: '#8490a5' }}>
-                      Withdrawal payout requests, destination phone/bank accounts, and admin approvals
-                    </small>
-                  </div>
-                  <button
-                    className="admin-btn"
-                    style={{ marginLeft: 'auto' }}
-                    onClick={() =>
-                      exportCSV(
-                        'withdrawal-ledger',
-                        ['TxID', 'Player', 'Amount', 'Method', 'Status', 'Time'],
-                        transactions
-                          .filter((t) => t.type === 'negative')
-                          .map((t) => [t.id, t.playerName, t.amount, t.method, t.status, t.timestamp])
-                      )
-                    }
-                  >
-                    Export CSV
-                  </button>
-                </div>
-
-                <div className="admin-activity-item" style={{ alignItems: 'center' }}>
-                  <i className="admin-dot"></i>
-                  <div>
-                    <strong>Wallet Balance Movement</strong>
-                    <small style={{ display: 'block', color: '#8490a5' }}>
-                      Account balance changes with game stakes, game wins, and referral earnings
-                    </small>
-                  </div>
-                  <button
-                    className="admin-btn"
-                    style={{ marginLeft: 'auto' }}
-                    onClick={() =>
-                      exportCSV(
-                        'wallet-movements',
-                        ['PlayerID', 'PlayerName', 'TotalBalance', 'Playable', 'Withdrawable'],
-                        usersList.map((u) => [u.id, u.name, u.totalBalance, u.playableBalance, u.withdrawableBalance])
-                      )
-                    }
-                  >
-                    Export CSV
-                  </button>
+                <div className="admin-table-wrap">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Game Title</th>
+                        <th>Total Rounds</th>
+                        <th>Turnover Volume</th>
+                        <th>Player Winnings</th>
+                        <th>Gross Gaming Revenue (GGR)</th>
+                        <th>Margin %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><strong>🎱 Bingo Live</strong></td>
+                        <td>4,820 Rounds</td>
+                        <td>2,450,000 ETB</td>
+                        <td>2,205,000 ETB</td>
+                        <td style={{ color: '#34d399', fontWeight: 700 }}>245,000 ETB</td>
+                        <td>10.0%</td>
+                      </tr>
+                      <tr>
+                        <td><strong>🎯 Keno Turbo</strong></td>
+                        <td>14,200 Rounds</td>
+                        <td>1,280,000 ETB</td>
+                        <td>1,209,600 ETB</td>
+                        <td style={{ color: '#34d399', fontWeight: 700 }}>70,400 ETB</td>
+                        <td>5.5%</td>
+                      </tr>
+                      <tr>
+                        <td><strong>🎲 Ludo Arena</strong></td>
+                        <td>2,140 Matches</td>
+                        <td>520,000 ETB</td>
+                        <td>478,400 ETB</td>
+                        <td style={{ color: '#34d399', fontWeight: 700 }}>41,600 ETB</td>
+                        <td>8.0%</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </section>
           )}
 
-          {/* ═════════ 5. ADMIN CONTROL SECTION ═════════ */}
+          {/* ═════════ 8. STAFF & ACCESS CONTROL ═════════ */}
           {activeSection === 'admins' && (
             <section>
               <div className="admin-head">
                 <div>
-                  <h1>Admin Role Control</h1>
-                  <p>Manage administrative roles, access controls, and view the immutable audit trail.</p>
+                  <h1>Administrative Staff & Role Permissions</h1>
+                  <p>Manage team member privileges and review immutable system audit trails.</p>
                 </div>
                 <button
                   className="admin-btn primary"
-                  onClick={() => showToast('Invite link generated for new admin')}
+                  onClick={() => setShowNewStaffModal(true)}
                 >
-                  + Add Admin
+                  + Add Team Member
                 </button>
               </div>
 
-              {/* Roles Cards */}
+              {/* Staff Directory */}
+              <div className="admin-card" style={{ marginBottom: '18px' }}>
+                <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>
+                  👥 Active Administrative Personnel
+                </div>
+
+                <div className="admin-table-wrap">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Staff Name</th>
+                        <th>Admin ID</th>
+                        <th>Username</th>
+                        <th>Role Tier</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {staffList.map((st) => (
+                        <tr key={st.id}>
+                          <td><strong>{st.name}</strong></td>
+                          <td>#{st.id}</td>
+                          <td>@{st.username}</td>
+                          <td><span className="admin-status active">{st.role}</span></td>
+                          <td>{st.email}</td>
+                          <td><span className="admin-status approved">{st.status}</span></td>
+                          <td style={{ color: '#8490a5' }}>{st.lastLogin}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Permissions Matrix */}
               <div className="admin-grid-3">
                 <div className="admin-card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
-                    <span style={{ fontWeight: 700 }}>Super Admin</span>
-                    <span className="admin-status approved">1 User</span>
+                    <span style={{ fontWeight: 700 }}>Super Admin Role</span>
+                    <span className="admin-status approved">Full Access</span>
                   </div>
                   <div className="admin-perm-row">
                     <span>View Players</span>
@@ -1081,21 +1526,21 @@ export const App: React.FC = () => {
                     ></div>
                   </div>
                   <div className="admin-perm-row">
-                    <span>Manage Payments</span>
+                    <span>Approve Cashier Payments</span>
                     <div
                       className={`admin-switch ${permissions.superManagePayments ? 'on' : ''}`}
                       onClick={() => setPermissions((p) => ({ ...p, superManagePayments: !p.superManagePayments }))}
                     ></div>
                   </div>
                   <div className="admin-perm-row">
-                    <span>Manage Team</span>
+                    <span>Manage Game Rooms</span>
                     <div
-                      className={`admin-switch ${permissions.superManageAdmins ? 'on' : ''}`}
-                      onClick={() => setPermissions((p) => ({ ...p, superManageAdmins: !p.superManageAdmins }))}
+                      className={`admin-switch ${permissions.superManageGames ? 'on' : ''}`}
+                      onClick={() => setPermissions((p) => ({ ...p, superManageGames: !p.superManageGames }))}
                     ></div>
                   </div>
                   <div className="admin-perm-row">
-                    <span>System Settings</span>
+                    <span>System Settings & Staff</span>
                     <div
                       className={`admin-switch ${permissions.superSystemSettings ? 'on' : ''}`}
                       onClick={() => setPermissions((p) => ({ ...p, superSystemSettings: !p.superSystemSettings }))}
@@ -1105,8 +1550,8 @@ export const App: React.FC = () => {
 
                 <div className="admin-card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
-                    <span style={{ fontWeight: 700 }}>Finance Admin</span>
-                    <span className="admin-status approved">2 Users</span>
+                    <span style={{ fontWeight: 700 }}>Finance Cashier</span>
+                    <span className="admin-status approved">Payments Only</span>
                   </div>
                   <div className="admin-perm-row">
                     <span>View Players</span>
@@ -1116,21 +1561,21 @@ export const App: React.FC = () => {
                     ></div>
                   </div>
                   <div className="admin-perm-row">
-                    <span>Manage Payments</span>
+                    <span>Approve Cashier Payments</span>
                     <div
                       className={`admin-switch ${permissions.financeManagePayments ? 'on' : ''}`}
                       onClick={() => setPermissions((p) => ({ ...p, financeManagePayments: !p.financeManagePayments }))}
                     ></div>
                   </div>
                   <div className="admin-perm-row">
-                    <span>Manage Team</span>
+                    <span>Manage Game Rooms</span>
                     <div
-                      className={`admin-switch ${permissions.financeManageAdmins ? 'on' : ''}`}
-                      onClick={() => setPermissions((p) => ({ ...p, financeManageAdmins: !p.financeManageAdmins }))}
+                      className={`admin-switch ${permissions.financeManageGames ? 'on' : ''}`}
+                      onClick={() => setPermissions((p) => ({ ...p, financeManageGames: !p.financeManageGames }))}
                     ></div>
                   </div>
                   <div className="admin-perm-row">
-                    <span>System Settings</span>
+                    <span>System Settings & Staff</span>
                     <div
                       className={`admin-switch ${permissions.financeSystemSettings ? 'on' : ''}`}
                       onClick={() => setPermissions((p) => ({ ...p, financeSystemSettings: !p.financeSystemSettings }))}
@@ -1140,8 +1585,8 @@ export const App: React.FC = () => {
 
                 <div className="admin-card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
-                    <span style={{ fontWeight: 700 }}>Support Admin</span>
-                    <span className="admin-status approved">3 Users</span>
+                    <span style={{ fontWeight: 700 }}>Support Agent</span>
+                    <span className="admin-status approved">Read Only</span>
                   </div>
                   <div className="admin-perm-row">
                     <span>View Players</span>
@@ -1151,21 +1596,21 @@ export const App: React.FC = () => {
                     ></div>
                   </div>
                   <div className="admin-perm-row">
-                    <span>Manage Payments</span>
+                    <span>Approve Cashier Payments</span>
                     <div
                       className={`admin-switch ${permissions.supportManagePayments ? 'on' : ''}`}
                       onClick={() => setPermissions((p) => ({ ...p, supportManagePayments: !p.supportManagePayments }))}
                     ></div>
                   </div>
                   <div className="admin-perm-row">
-                    <span>Manage Team</span>
+                    <span>Manage Game Rooms</span>
                     <div
-                      className={`admin-switch ${permissions.supportManageAdmins ? 'on' : ''}`}
-                      onClick={() => setPermissions((p) => ({ ...p, supportManageAdmins: !p.supportManageAdmins }))}
+                      className={`admin-switch ${permissions.supportManageGames ? 'on' : ''}`}
+                      onClick={() => setPermissions((p) => ({ ...p, supportManageGames: !p.supportManageGames }))}
                     ></div>
                   </div>
                   <div className="admin-perm-row">
-                    <span>System Settings</span>
+                    <span>System Settings & Staff</span>
                     <div
                       className={`admin-switch ${permissions.supportSystemSettings ? 'on' : ''}`}
                       onClick={() => setPermissions((p) => ({ ...p, supportSystemSettings: !p.supportSystemSettings }))}
@@ -1174,52 +1619,35 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Audit Log */}
-              <div className="admin-card" style={{ marginTop: '16px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px' }}>
-                  Live Administrative Audit Trail
+              {/* System Audit Log */}
+              <div className="admin-card" style={{ marginTop: '18px' }}>
+                <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>
+                  🛡️ Immutable Administrative Audit Log
                 </div>
 
-                <div className="admin-activity-item">
-                  <i className="admin-dot"></i>
-                  <div>
-                    <strong>Super Admin approved withdrawal #WD-10918</strong>
-                    <small style={{ display: 'block', color: '#8490a5', fontSize: '10.5px' }}>
-                      09:01 · Admin ID #A001 · Amount: 450 ETB
-                    </small>
+                {auditLogs.map((log) => (
+                  <div key={log.id} className="admin-activity-item">
+                    <i className="admin-dot"></i>
+                    <div style={{ width: '100%' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <strong>{log.action}</strong>
+                        <small style={{ color: '#8490a5' }}>{log.timestamp}</small>
+                      </div>
+                      <small style={{ color: '#8490a5' }}>By {log.admin} · IP: {log.ip}</small>
+                    </div>
                   </div>
-                </div>
-
-                <div className="admin-activity-item">
-                  <i className="admin-dot yellow"></i>
-                  <div>
-                    <strong>Support Admin restricted player #102955</strong>
-                    <small style={{ display: 'block', color: '#8490a5', fontSize: '10.5px' }}>
-                      08:43 · Admin ID #A003 · Reason: Duplicate account verification
-                    </small>
-                  </div>
-                </div>
-
-                <div className="admin-activity-item">
-                  <i className="admin-dot"></i>
-                  <div>
-                    <strong>Finance Admin approved Telebirr deposit #DP-20840</strong>
-                    <small style={{ display: 'block', color: '#8490a5', fontSize: '10.5px' }}>
-                      08:15 · Admin ID #A002 · Amount: 1,000 ETB
-                    </small>
-                  </div>
-                </div>
+                ))}
               </div>
             </section>
           )}
 
-          {/* ═════════ 6. SETTINGS SECTION ═════════ */}
+          {/* ═════════ 9. PLATFORM SETTINGS ═════════ */}
           {activeSection === 'settings' && (
             <section>
               <div className="admin-head">
                 <div>
-                  <h1>Platform Settings</h1>
-                  <p>Financial parameters, official payment gateway numbers, and security options.</p>
+                  <h1>Platform & Gateway Settings</h1>
+                  <p>Configure official Telebirr / CBE payment receiving accounts and maintenance modes.</p>
                 </div>
                 <button
                   className="admin-btn primary"
@@ -1230,33 +1658,13 @@ export const App: React.FC = () => {
               </div>
 
               <div className="admin-card" style={{ marginBottom: '16px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '16px' }}>
-                  Financial Limits & Thresholds
+                <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '16px' }}>
+                  Official Payment Gateways (Ethiopia)
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                   <div className="admin-input-group">
-                    <label>Minimum Deposit Amount (ETB)</label>
-                    <input
-                      type="number"
-                      value={minDeposit}
-                      onChange={(e) => setMinDeposit(Number(e.target.value))}
-                    />
-                  </div>
-
-                  <div className="admin-input-group">
-                    <label>Minimum Withdrawal Amount (ETB)</label>
-                    <input
-                      type="number"
-                      value={minWithdraw}
-                      onChange={(e) => setMinWithdraw(Number(e.target.value))}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div className="admin-input-group">
-                    <label>Official Telebirr Merchant Phone</label>
+                    <label>Official Telebirr Receiver Phone</label>
                     <input
                       type="text"
                       value={telebirrPhone}
@@ -1273,18 +1681,38 @@ export const App: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="admin-input-group">
+                    <label>Minimum Deposit Limit (ETB)</label>
+                    <input
+                      type="number"
+                      value={minDeposit}
+                      onChange={(e) => setMinDeposit(Number(e.target.value))}
+                    />
+                  </div>
+
+                  <div className="admin-input-group">
+                    <label>Minimum Withdrawal Limit (ETB)</label>
+                    <input
+                      type="number"
+                      value={minWithdraw}
+                      onChange={(e) => setMinWithdraw(Number(e.target.value))}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="admin-card">
-                <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '16px' }}>
-                  Security & Workflow Flags
+                <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '16px' }}>
+                  Security & Operational Flags
                 </div>
 
                 <div className="admin-perm-row">
                   <div>
-                    <strong style={{ fontSize: '13px' }}>Manual Deposit Review Mode</strong>
+                    <strong style={{ fontSize: '13px' }}>Manual Deposit Verification Mode</strong>
                     <div style={{ color: '#8490a5', fontSize: '11px' }}>
-                      Require admin confirmation before crediting Telebirr/CBE SMS receipts
+                      Require cashier approval before crediting Telebirr/CBE SMS receipts
                     </div>
                   </div>
                   <div
@@ -1297,7 +1725,7 @@ export const App: React.FC = () => {
                   <div>
                     <strong style={{ fontSize: '13px' }}>Maintenance Mode</strong>
                     <div style={{ color: '#8490a5', fontSize: '11px' }}>
-                      Temporarily pause game lobbies for scheduled server maintenance
+                      Temporarily pause player logins and game lobbies for updates
                     </div>
                   </div>
                   <div
@@ -1368,12 +1796,12 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* ── User Manage Modal ── */}
+      {/* ── 360° Player Profile Drawer / Modal ── */}
       {selectedUser && (
         <div className="admin-modal-backdrop" onClick={() => setSelectedUser(null)}>
           <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
-              <div className="admin-modal-title">Manage Player: {selectedUser.name}</div>
+              <div className="admin-modal-title">360° Player CRM: {selectedUser.name}</div>
               <button
                 onClick={() => setSelectedUser(null)}
                 style={{ background: 'none', border: 'none', color: '#8490a5', fontSize: '18px', cursor: 'pointer' }}
@@ -1385,11 +1813,23 @@ export const App: React.FC = () => {
             <div style={{ background: '#0b1220', padding: '14px', borderRadius: '10px', marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <span style={{ color: '#8490a5', fontSize: '12px' }}>Telegram ID:</span>
-                <span style={{ fontWeight: 600 }}>#{selectedUser.id}</span>
+                <span style={{ fontWeight: 600 }}>#{selectedUser.id} ({selectedUser.username})</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ color: '#8490a5', fontSize: '12px' }}>Phone:</span>
+                <span>{selectedUser.phone}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <span style={{ color: '#8490a5', fontSize: '12px' }}>Total Balance:</span>
-                <span style={{ fontWeight: 800, color: '#22d3ee' }}>{selectedUser.totalBalance} ETB</span>
+                <span style={{ fontWeight: 800, color: '#22d3ee', fontSize: '15px' }}>{selectedUser.totalBalance} ETB</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ color: '#8490a5', fontSize: '12px' }}>Playable / Withdrawable:</span>
+                <span>{selectedUser.playableBalance} ETB / {selectedUser.withdrawableBalance} ETB</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ color: '#8490a5', fontSize: '12px' }}>Total Deposited / Withdrawn:</span>
+                <span>+{selectedUser.totalDeposited || 0} ETB / -{selectedUser.totalWithdrawn || 0} ETB</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#8490a5', fontSize: '12px' }}>Account Status:</span>
@@ -1397,18 +1837,40 @@ export const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Adjust Balance */}
+            {/* Adjust Balance Tool */}
             <div className="admin-input-group">
-              <label>Adjust Balance (e.g. +500 or -200 ETB)</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <label>Manual Balance Adjustment (e.g. +500 or -200 ETB)</label>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                 <input
                   type="number"
-                  placeholder="Enter amount..."
+                  placeholder="Amount ETB..."
                   value={balanceAdjustAmount}
                   onChange={(e) => setBalanceAdjustAmount(e.target.value)}
                 />
                 <button className="admin-btn primary" onClick={handleAdjustBalance}>
-                  Apply
+                  Apply Adjustment
+                </button>
+              </div>
+              <input
+                type="text"
+                placeholder="Reason / Audit Note (e.g. Tournament bonus credit)"
+                value={balanceAdjustReason}
+                onChange={(e) => setBalanceAdjustReason(e.target.value)}
+              />
+            </div>
+
+            {/* Direct Telegram Message */}
+            <div className="admin-input-group" style={{ marginTop: '14px' }}>
+              <label>Send Direct Message via Telegram Bot</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Message text to player..."
+                  value={userDirectMessage}
+                  onChange={(e) => setUserDirectMessage(e.target.value)}
+                />
+                <button className="admin-btn" onClick={handleSendUserDirectMsg}>
+                  Send
                 </button>
               </div>
             </div>
@@ -1416,7 +1878,7 @@ export const App: React.FC = () => {
             {/* Status Switcher */}
             <div style={{ marginTop: '16px' }}>
               <label style={{ fontSize: '11px', color: '#8490a5', display: 'block', marginBottom: '6px' }}>
-                ACCOUNT STATUS CONTROL
+                ACCOUNT RISK STATUS
               </label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
@@ -1443,7 +1905,135 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* ── New Payment Action Modal ── */}
+      {/* ── Add Bingo Room Modal ── */}
+      {showNewBingoRoomModal && (
+        <div className="admin-modal-backdrop" onClick={() => setShowNewBingoRoomModal(false)}>
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <div className="admin-modal-title">Create New Bingo Room</div>
+              <button
+                onClick={() => setShowNewBingoRoomModal(false)}
+                style={{ background: 'none', border: 'none', color: '#8490a5', fontSize: '18px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateBingoRoom}>
+              <div className="admin-input-group">
+                <label>Room Name</label>
+                <input name="roomName" placeholder="e.g. Diamond Lobby" required />
+              </div>
+
+              <div className="admin-input-group">
+                <label>Ticket Price (ETB Stake)</label>
+                <input name="stake" type="number" defaultValue="25" required />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="admin-input-group">
+                  <label>Min Players</label>
+                  <input name="minPlayers" type="number" defaultValue="2" required />
+                </div>
+                <div className="admin-input-group">
+                  <label>Max Players</label>
+                  <input name="maxPlayers" type="number" defaultValue="40" required />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
+                <button
+                  type="button"
+                  className="admin-btn"
+                  onClick={() => setShowNewBingoRoomModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="admin-btn primary">
+                  Create Room
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Staff Modal ── */}
+      {showNewStaffModal && (
+        <div className="admin-modal-backdrop" onClick={() => setShowNewStaffModal(false)}>
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <div className="admin-modal-title">Add Team Member</div>
+              <button
+                onClick={() => setShowNewStaffModal(false)}
+                style={{ background: 'none', border: 'none', color: '#8490a5', fontSize: '18px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const form = e.target as any;
+                const newSt: StaffItem = {
+                  id: `A00${staffList.length + 1}`,
+                  name: form.name.value,
+                  username: form.username.value,
+                  role: form.role.value,
+                  email: form.email.value,
+                  status: 'active',
+                  lastLogin: 'Never',
+                };
+                setStaffList((prev) => [...prev, newSt]);
+                adminApi.addStaff(newSt);
+                setShowNewStaffModal(false);
+                showToast(`Staff member ${newSt.name} added`);
+              }}
+            >
+              <div className="admin-input-group">
+                <label>Full Name</label>
+                <input name="name" placeholder="e.g. Abebe Kassahun" required />
+              </div>
+
+              <div className="admin-input-group">
+                <label>Username</label>
+                <input name="username" placeholder="e.g. abebe_admin" required />
+              </div>
+
+              <div className="admin-input-group">
+                <label>Role</label>
+                <select name="role" className="admin-select" style={{ width: '100%' }}>
+                  <option value="Finance Cashier">Finance Cashier</option>
+                  <option value="Support Agent">Support Agent</option>
+                  <option value="Game Master">Game Master</option>
+                  <option value="Super Admin">Super Admin</option>
+                </select>
+              </div>
+
+              <div className="admin-input-group">
+                <label>Email Address</label>
+                <input name="email" type="email" placeholder="staff@gamezone.et" required />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
+                <button
+                  type="button"
+                  className="admin-btn"
+                  onClick={() => setShowNewStaffModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="admin-btn primary">
+                  Add Personnel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── New Manual Payment Modal ── */}
       {showNewPaymentModal && (
         <div className="admin-modal-backdrop" onClick={() => setShowNewPaymentModal(false)}>
           <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
@@ -1467,7 +2057,7 @@ export const App: React.FC = () => {
                   playerName: form.playerName.value,
                   username: '@' + form.playerName.value.toLowerCase().replace(/\s+/g, ''),
                   title: `${form.type.value} via ${form.method.value}`,
-                  meta: `Manual Admin Action: ${form.note.value || 'None'}`,
+                  meta: `Manual Action: ${form.note.value || 'Admin Adjustment'}`,
                   amount: form.type.value === 'Deposit' ? Number(form.amount.value) : -Number(form.amount.value),
                   currency: 'ETB',
                   type: form.type.value === 'Deposit' ? 'positive' : 'negative',
@@ -1477,7 +2067,7 @@ export const App: React.FC = () => {
                 };
                 setTransactions((prev) => [newTx, ...prev]);
                 setShowNewPaymentModal(false);
-                showToast(`Manual ${form.type.value} of ${form.amount.value} ETB created`);
+                showToast(`Manual ${form.type.value} of ${form.amount.value} ETB executed`);
               }}
             >
               <div className="admin-input-group">
@@ -1510,8 +2100,8 @@ export const App: React.FC = () => {
               </div>
 
               <div className="admin-input-group">
-                <label>Admin Note / Reference</label>
-                <input name="note" placeholder="e.g. Promotional bonus credit" />
+                <label>Admin Note / Memo</label>
+                <input name="note" placeholder="e.g. Promotional bonus / dispute resolution" />
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
@@ -1531,7 +2121,7 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* ── Toast Message ── */}
+      {/* ── Toast Notification ── */}
       {toastMessage && (
         <div
           style={{
