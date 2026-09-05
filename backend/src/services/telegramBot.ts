@@ -55,6 +55,7 @@ export function initTelegramBot(): any {
       });
 
     // Helper: Build the Main Menu Keyboards
+    // NOTE: ONLY 🎮 PLAY opens the Web App directly. All other buttons work 100% inside Telegram Bot chat!
     const getMainMenuInlineKeyboard = () => ({
       inline_keyboard: [
         [
@@ -66,11 +67,11 @@ export function initTelegramBot(): any {
         [
           {
             text: '💰 DEPOSIT',
-            web_app: { url: `${WEB_APP_URL}?action=deposit` },
+            callback_data: 'menu_deposit',
           },
           {
             text: '💸 WITHDRAW',
-            web_app: { url: `${WEB_APP_URL}?action=withdraw` },
+            callback_data: 'menu_withdraw',
           },
         ],
         [
@@ -90,7 +91,7 @@ export function initTelegramBot(): any {
           },
           {
             text: '👤 PROFILE',
-            web_app: { url: `${WEB_APP_URL}?page=profile` },
+            callback_data: 'menu_profile',
           },
         ],
       ],
@@ -105,14 +106,8 @@ export function initTelegramBot(): any {
           },
         ],
         [
-          {
-            text: '💰 DEPOSIT',
-            web_app: { url: `${WEB_APP_URL}?action=deposit` },
-          },
-          {
-            text: '💸 WITHDRAW',
-            web_app: { url: `${WEB_APP_URL}?action=withdraw` },
-          },
+          { text: '💰 DEPOSIT' },
+          { text: '💸 WITHDRAW' },
         ],
         [
           { text: '👛 BALANCE' },
@@ -120,19 +115,123 @@ export function initTelegramBot(): any {
         ],
         [
           { text: '📢 ANNOUNCEMENTS' },
-          {
-            text: '👤 PROFILE',
-            web_app: { url: `${WEB_APP_URL}?page=profile` },
-          },
+          { text: '👤 PROFILE' },
         ],
       ],
       resize_keyboard: true,
       is_persistent: true,
     });
 
+    // ── Content Builders for In-Bot Features ──
+
+    const getDepositMessage = () => {
+      return (
+        `💰 *GameZone Deposit Center*\n\n` +
+        `Top up your wallet instantly to play Bingo Live, Keno Turbo, and Ludo Arena.\n\n` +
+        `📱 *Payment Methods:*\n` +
+        `1️⃣ *Telebirr*: \`0911002233\` (GameZone VIP)\n` +
+        `2️⃣ *CBE Bank*: \`1000123456789\` (GameZone Ltd)\n\n` +
+        `⚡ *Instructions:*\n` +
+        `• Minimum deposit: *50 ETB*\n` +
+        `• Transfer the exact amount via Telebirr or CBE.\n` +
+        `• Keep your transaction SMS / Reference ID.\n` +
+        `• Your funds will reflect in your balance automatically!\n\n` +
+        `_Tap below to check balance or launch the game._`
+      );
+    };
+
+    const getDepositKeyboard = () => ({
+      inline_keyboard: [
+        [{ text: '🎮 PLAY NOW', web_app: { url: WEB_APP_URL } }],
+        [
+          { text: '👛 Check Balance', callback_data: 'menu_balance' },
+          { text: '« Main Menu', callback_data: 'menu_home' },
+        ],
+      ],
+    });
+
+    const getWithdrawMessage = () => {
+      const balances = db.getBalances();
+      return (
+        `💸 *GameZone Withdrawal Center*\n\n` +
+        `Cash out your winnings instantly to your Telebirr or CBE account.\n\n` +
+        `💵 *Your Withdrawable Balance:* *${balances.withdrawable.toFixed(2)} ${balances.currency}*\n\n` +
+        `⚡ *Withdrawal Terms:*\n` +
+        `• Minimum withdrawal: *100 ETB*\n` +
+        `• Processing time: *1 to 5 minutes*\n` +
+        `• 0% fee on all Telebirr withdrawals.\n\n` +
+        `_To submit a withdrawal request, ensure your balance is above 100 ETB._`
+      );
+    };
+
+    const getWithdrawKeyboard = () => ({
+      inline_keyboard: [
+        [{ text: '🎮 PLAY NOW', web_app: { url: WEB_APP_URL } }],
+        [
+          { text: '💰 Deposit', callback_data: 'menu_deposit' },
+          { text: '« Main Menu', callback_data: 'menu_home' },
+        ],
+      ],
+    });
+
+    const getProfileMessage = () => {
+      const user = db.getUser();
+      const balances = db.getBalances();
+      return (
+        `👤 *Player Profile: ${user.name}*\n\n` +
+        `🏷 *Username:* ${user.username}\n` +
+        `🆔 *Telegram ID:* \`${user.telegramId || user.id}\`\n` +
+        `⭐ *Tier:* VIP Gold Player\n` +
+        `🎁 *Referral Code:* \`${user.referralCode}\`\n\n` +
+        `💰 *Wallet Balances:*\n` +
+        `• Total: *${balances.total.toFixed(2)} ETB*\n` +
+        `• Playable: *${balances.playable.toFixed(2)} ETB*\n` +
+        `• Withdrawable: *${balances.withdrawable.toFixed(2)} ETB*\n\n` +
+        `👥 *Referral Stats:*\n` +
+        `• Invited Players: *${user.totalReferrals || 0}*\n` +
+        `• Total Bonus Earned: *${(user.referralBonusETB || 0).toFixed(2)} ETB*`
+      );
+    };
+
+    const getProfileKeyboard = () => ({
+      inline_keyboard: [
+        [{ text: '🎮 LAUNCH GAMEZONE', web_app: { url: WEB_APP_URL } }],
+        [
+          { text: '💰 Deposit', callback_data: 'menu_deposit' },
+          { text: '💸 Withdraw', callback_data: 'menu_withdraw' },
+        ],
+        [
+          { text: '🎁 Referral Link', callback_data: 'menu_referral' },
+          { text: '« Main Menu', callback_data: 'menu_home' },
+        ],
+      ],
+    });
+
+    const getBalanceMessage = () => {
+      const balances = db.getBalances();
+      return (
+        `👛 *Your GameZone Balances:*\n\n` +
+        `💰 *Total Balance:* *${balances.total.toFixed(2)} ${balances.currency}*\n` +
+        `🎮 *Playable Funds:* ${balances.playable.toFixed(2)} ${balances.currency}\n` +
+        `💸 *Withdrawable Winnings:* ${balances.withdrawable.toFixed(2)} ${balances.currency}\n\n` +
+        `_Tap 🎮 PLAY to join live Bingo, Keno, or Ludo tournaments!_`
+      );
+    };
+
+    const getBalanceKeyboard = () => ({
+      inline_keyboard: [
+        [{ text: '🎮 PLAY NOW', web_app: { url: WEB_APP_URL } }],
+        [
+          { text: '💰 Deposit', callback_data: 'menu_deposit' },
+          { text: '💸 Withdraw', callback_data: 'menu_withdraw' },
+        ],
+        [{ text: '« Main Menu', callback_data: 'menu_home' }],
+      ],
+    });
+
     const sendWelcomeMessage = async (chatId: number, user?: any) => {
       console.log(`✨ Sending welcome message to Chat ID: ${chatId} (@${user?.username || 'user'})`);
-      
+
       // Sync or update user in database
       if (user) {
         const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Player';
@@ -175,24 +274,25 @@ export function initTelegramBot(): any {
           return;
         }
 
-        if (text === '👛 BALANCE' || text.toLowerCase().includes('balance')) {
-          const balances = db.getBalances();
-          const balanceMsg = `👛 *Your GameZone Balances:*\n\n` +
-            `💰 *Total:* ${balances.total.toFixed(2)} ${balances.currency}\n` +
-            `🎮 *Playable:* ${balances.playable.toFixed(2)} ${balances.currency}\n` +
-            `💸 *Withdrawable:* ${balances.withdrawable.toFixed(2)} ${balances.currency}`;
-
-          await bot.sendMessage(chatId, balanceMsg, {
+        if (text === '💰 DEPOSIT' || text.toLowerCase().includes('deposit')) {
+          await bot.sendMessage(chatId, getDepositMessage(), {
             parse_mode: 'Markdown',
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '🎮 PLAY NOW', web_app: { url: WEB_APP_URL } }],
-                [
-                  { text: '💰 Deposit', web_app: { url: `${WEB_APP_URL}?action=deposit` } },
-                  { text: '💸 Withdraw', web_app: { url: `${WEB_APP_URL}?action=withdraw` } },
-                ],
-              ],
-            },
+            reply_markup: getDepositKeyboard(),
+          });
+        } else if (text === '💸 WITHDRAW' || text.toLowerCase().includes('withdraw')) {
+          await bot.sendMessage(chatId, getWithdrawMessage(), {
+            parse_mode: 'Markdown',
+            reply_markup: getWithdrawKeyboard(),
+          });
+        } else if (text === '👤 PROFILE' || text.toLowerCase().includes('profile')) {
+          await bot.sendMessage(chatId, getProfileMessage(), {
+            parse_mode: 'Markdown',
+            reply_markup: getProfileKeyboard(),
+          });
+        } else if (text === '👛 BALANCE' || text.toLowerCase().includes('balance')) {
+          await bot.sendMessage(chatId, getBalanceMessage(), {
+            parse_mode: 'Markdown',
+            reply_markup: getBalanceKeyboard(),
           });
         } else if (text === '🎁 REFERRAL' || text.toLowerCase().includes('referral')) {
           const user = db.getUser();
@@ -200,73 +300,44 @@ export function initTelegramBot(): any {
           const botUsername = me.username || 'bingox2019_bot';
           const refLink = `https://t.me/${botUsername}?start=ref_${user.telegramId || user.id}`;
 
-          const refMsg = `🎁 *Invite & Earn ETB*\n\n` +
+          const refMsg =
+            `🎁 *Invite & Earn ETB*\n\n` +
+            `Share your personal referral link with friends. You receive *25 ETB* instant bonus for every active player you invite!\n\n` +
             `👥 *Your Referrals:* ${user.totalReferrals || 0}\n` +
-            `💵 *Bonus Earned:* ${(user.referralBonusETB || 0).toFixed(2)} ETB\n\n` +
-            `🔗 *Referral Link:*\n\`${refLink}\``;
+            `💵 *Total Bonus Earned:* ${(user.referralBonusETB || 0).toFixed(2)} ETB\n\n` +
+            `🔗 *Your Referral Link:*\n\`${refLink}\``;
 
           await bot.sendMessage(chatId, refMsg, {
             parse_mode: 'Markdown',
             reply_markup: {
               inline_keyboard: [
                 [{ text: '🎮 OPEN GAMEZONE', web_app: { url: WEB_APP_URL } }],
-                [{ text: '📢 Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join me on GameZone and play now! 🎮')}` }],
+                [
+                  {
+                    text: '📢 Share Referral Link',
+                    url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(
+                      'Join me on GameZone and play real games to win cash prizes! 🎮💰'
+                    )}`,
+                  },
+                ],
+                [{ text: '« Main Menu', callback_data: 'menu_home' }],
               ],
             },
           });
         } else if (text === '📢 ANNOUNCEMENTS' || text.toLowerCase().includes('announcement')) {
-          const announceMsg = `📢 *GameZone Announcements*\n\n` +
-            `🔥 *Bingo Live* active rooms with huge pots!\n` +
-            `⚡ Instant Telebirr & CBE deposits and withdrawals.\n` +
-            `🎯 24/7 Live gaming tournaments!`;
+          const announceMsg =
+            `📢 *GameZone Announcements & News*\n\n` +
+            `🔥 *Bingo Live Turbo Rooms* are active with prize pools up to *50,000 ETB*!\n` +
+            `⚡ *Instant Telebirr & CBE* deposits and withdrawals available 24/7.\n` +
+            `🎯 *Keno Turbo 2.0* tournament rounds start every 30 minutes.\n\n` +
+            `Join the action now!`;
 
           await bot.sendMessage(chatId, announceMsg, {
             parse_mode: 'Markdown',
             reply_markup: {
               inline_keyboard: [
                 [{ text: '🎮 PLAY NOW', web_app: { url: WEB_APP_URL } }],
-              ],
-            },
-          });
-        } else if (text === '💰 DEPOSIT' || text.toLowerCase().includes('deposit')) {
-          await bot.sendMessage(
-            chatId,
-            `💰 *Deposit Funds into GameZone*\n\nFast & secure deposits via Telebirr or CBE Bank.\n\nTap below to open the deposit page directly:`,
-            {
-              parse_mode: 'Markdown',
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '💰 OPEN DEPOSIT PAGE', web_app: { url: `${WEB_APP_URL}?action=deposit` } }],
-                ],
-              },
-            }
-          );
-        } else if (text === '💸 WITHDRAW' || text.toLowerCase().includes('withdraw')) {
-          await bot.sendMessage(
-            chatId,
-            `💸 *Withdraw Winnings*\n\nInstant withdrawals directly to your Telebirr account or CBE.\n\nTap below to open the withdrawal page:`,
-            {
-              parse_mode: 'Markdown',
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '💸 OPEN WITHDRAW PAGE', web_app: { url: `${WEB_APP_URL}?action=withdraw` } }],
-                ],
-              },
-            }
-          );
-        } else if (text === '👤 PROFILE' || text.toLowerCase().includes('profile')) {
-          const user = db.getUser();
-          const profileMsg = `👤 *Your GameZone Profile*\n\n` +
-            `📛 *Name:* ${user.name}\n` +
-            `🏷 *Username:* ${user.username}\n` +
-            `🆔 *ID:* \`${user.telegramId || user.id}\`\n` +
-            `🎁 *Referral Code:* \`${user.referralCode}\``;
-
-          await bot.sendMessage(chatId, profileMsg, {
-            parse_mode: 'Markdown',
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '👤 VIEW FULL PROFILE', web_app: { url: `${WEB_APP_URL}?page=profile` } }],
+                [{ text: '« Main Menu', callback_data: 'menu_home' }],
               ],
             },
           });
@@ -285,25 +356,27 @@ export function initTelegramBot(): any {
 
         await bot.answerCallbackQuery(query.id);
 
-        if (data === 'menu_balance') {
-          const balances = db.getBalances();
-          const balanceMsg = `👛 *Your GameZone Balances:*\n\n` +
-            `💰 *Total:* ${balances.total.toFixed(2)} ${balances.currency}\n` +
-            `🎮 *Playable:* ${balances.playable.toFixed(2)} ${balances.currency}\n` +
-            `💸 *Withdrawable:* ${balances.withdrawable.toFixed(2)} ${balances.currency}\n\n` +
-            `_Tap below to play games or manage your wallet._`;
-
-          await bot.sendMessage(chatId, balanceMsg, {
+        if (data === 'menu_home') {
+          await sendWelcomeMessage(chatId, query.from);
+        } else if (data === 'menu_deposit') {
+          await bot.sendMessage(chatId, getDepositMessage(), {
             parse_mode: 'Markdown',
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '🎮 PLAY NOW', web_app: { url: WEB_APP_URL } }],
-                [
-                  { text: '💰 Deposit', web_app: { url: `${WEB_APP_URL}?action=deposit` } },
-                  { text: '💸 Withdraw', web_app: { url: `${WEB_APP_URL}?action=withdraw` } },
-                ],
-              ],
-            },
+            reply_markup: getDepositKeyboard(),
+          });
+        } else if (data === 'menu_withdraw') {
+          await bot.sendMessage(chatId, getWithdrawMessage(), {
+            parse_mode: 'Markdown',
+            reply_markup: getWithdrawKeyboard(),
+          });
+        } else if (data === 'menu_profile') {
+          await bot.sendMessage(chatId, getProfileMessage(), {
+            parse_mode: 'Markdown',
+            reply_markup: getProfileKeyboard(),
+          });
+        } else if (data === 'menu_balance') {
+          await bot.sendMessage(chatId, getBalanceMessage(), {
+            parse_mode: 'Markdown',
+            reply_markup: getBalanceKeyboard(),
           });
         } else if (data === 'menu_referral') {
           const user = db.getUser();
@@ -311,7 +384,8 @@ export function initTelegramBot(): any {
           const botUsername = me.username || 'bingox2019_bot';
           const refLink = `https://t.me/${botUsername}?start=ref_${user.telegramId || user.id}`;
 
-          const refMsg = `🎁 *Invite Friends & Earn ETB!*\n\n` +
+          const refMsg =
+            `🎁 *Invite Friends & Earn ETB!*\n\n` +
             `Share your referral link with friends. You earn *25 ETB* for each active player you invite!\n\n` +
             `👥 *Your Total Referrals:* ${user.totalReferrals || 0}\n` +
             `💵 *Total Bonus Earned:* ${(user.referralBonusETB || 0).toFixed(2)} ETB\n\n` +
@@ -322,12 +396,21 @@ export function initTelegramBot(): any {
             reply_markup: {
               inline_keyboard: [
                 [{ text: '🎮 OPEN GAMEZONE', web_app: { url: WEB_APP_URL } }],
-                [{ text: '📢 Share Referral Link', url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join me on GameZone and win real prizes! 🎮💰')}` }],
+                [
+                  {
+                    text: '📢 Share Referral Link',
+                    url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(
+                      'Join me on GameZone and win real prizes! 🎮💰'
+                    )}`,
+                  },
+                ],
+                [{ text: '« Main Menu', callback_data: 'menu_home' }],
               ],
             },
           });
         } else if (data === 'menu_announcements') {
-          const announceMsg = `📢 *GameZone Announcements & News*\n\n` +
+          const announceMsg =
+            `📢 *GameZone Announcements & News*\n\n` +
             `🔥 *Bingo Live Turbo Rooms* are active with prize pools up to *50,000 ETB*!\n` +
             `⚡ *Instant Telebirr & CBE* deposits and withdrawals 24/7.\n` +
             `🎯 *Keno Turbo 2.0* tournament starts every 30 minutes.\n\n` +
@@ -338,6 +421,7 @@ export function initTelegramBot(): any {
             reply_markup: {
               inline_keyboard: [
                 [{ text: '🎮 PLAY NOW', web_app: { url: WEB_APP_URL } }],
+                [{ text: '« Main Menu', callback_data: 'menu_home' }],
               ],
             },
           });
