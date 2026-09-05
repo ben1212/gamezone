@@ -1,0 +1,100 @@
+/* ── Fixed Bottom Navigation Dock ─────────────────── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+  padding-bottom: max(env(safe-area-inset-bottom), 4px);
+}
+
+.bottom-nav-inner {
+  width: 100%;
+  max-width: var(--max-w);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: 52px;
+  padding: 0 6px;
+}
+
+/* ── Navigation Item ─────────────────────────────── */
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  height: 42px;
+  margin: 0 2px;
+  border-radius: var(--r-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--t-fast);
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+
+.bottom-nav-item:active {
+  transform: scale(0.94);
+}
+
+.bottom-nav-icon-wrap {
+  width: 24px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--t-fast);
+}
+
+.bottom-nav-icon-wrap svg {
+  width: 19px;
+  height: 19px;
+  stroke: var(--text-muted);
+  transition: stroke var(--t-fast), filter var(--t-fast);
+}
+
+.bottom-nav-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  line-height: 1;
+  color: var(--text-muted);
+  transition: color var(--t-fast);
+}
+
+/* ── Active State With Cyan / Indigo Accent ──────── */
+.bottom-nav-item.active {
+  background: rgba(99, 102, 241, 0.16);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.bottom-nav-item.active .bottom-nav-label {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.bottom-nav-item.active .bottom-nav-icon-wrap svg {
+  stroke: var(--cyan);
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.7));
+}
+
+.bottom-nav-item:hover:not(.active) {
+  color: var(--text-secondary);
+  background: rgba(248, 250, 252, 0.04);
+}
+
+.bottom-nav-item:hover:not(.active) .bottom-nav-icon-wrap svg {
+  stroke: var(--text-secondary);
+}
+

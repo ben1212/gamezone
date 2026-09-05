@@ -1,0 +1,495 @@
+/* ── Bingo Cartela Board & Lobby Styles ─────────── */
+
+/* ── Bingo Metrics ──────────────────────────────── */
+.bingo-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  text-align: center;
+  font-family: var(--font);
+}
+
+.bingo-metric-card {
+  background: var(--bg-card);
+  border-radius: var(--r-md);
+  padding: 8px 4px;
+  border: 1px solid var(--border);
+  box-shadow: var(--sheen-top);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font);
+}
+
+.bingo-metric-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  letter-spacing: 0.3px;
+  font-family: var(--font);
+}
+
+.bingo-metric-value {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.2px;
+  font-family: var(--font);
+}
+
+.cartella-grid-container {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 480px) {
+  .cartella-grid-container {
+    gap: 4px;
+  }
+  .cartella-grid-item {
+    font-size: 11.5px;
+    border-radius: 6px;
+  }
+}
+
+@media (max-width: 360px) {
+  .cartella-grid-container {
+    gap: 3px;
+  }
+  .cartella-grid-item {
+    font-size: 10px;
+    border-radius: 5px;
+  }
+}
+
+/* ── Cartela Tile (200 Tiles Total in Lobby) ─────── */
+.cartella-grid-item {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font), sans-serif;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--t-fast), border-color var(--t-fast);
+  box-shadow: var(--sheen-top);
+}
+
+.cartella-grid-item:hover:not(.taken):not(.disabled) {
+  border-color: var(--cyan);
+  color: var(--text-primary);
+  transform: scale(1.04);
+}
+
+.cartella-grid-item:active:not(.taken):not(.disabled) {
+  transform: scale(0.92);
+}
+
+/* ── Selected Cartela (Mine) ─────────────────────── */
+.cartella-grid-item.mine {
+  background: var(--cyan) !important;
+  border-color: #A5F3FC !important;
+  color: #0B1120 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.6) !important;
+  animation: minePulse 0.18s ease-out;
+}
+
+@keyframes minePulse {
+  0% { transform: scale(0.88); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+/* ── Taken By Another Player ─────────────────────── */
+.cartella-grid-item.taken {
+  background: rgba(248, 250, 252, 0.02) !important;
+  border-color: rgba(248, 250, 252, 0.04) !important;
+  color: #334155 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  text-decoration: line-through;
+  opacity: 0.4;
+}
+
+/* ── Drawing Disabled ────────────────────────────── */
+.cartella-grid-item.disabled {
+  cursor: not-allowed !important;
+  opacity: 0.4;
+}
+
+/* ── MASTER BOARD (1-75) ─────────────────────────── */
+.master-board {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.master-board-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  height: 100%;
+}
+
+.master-board-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  padding: 3px 0;
+  border-radius: 4px;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+}
+
+.master-board-header.col-b { background: #ef4444; }
+.master-board-header.col-i { background: #f59e0b; }
+.master-board-header.col-n { background: #10b981; }
+.master-board-header.col-g { background: #0284c7; }
+.master-board-header.col-o { background: #8b5cf6; }
+
+.master-board-cells {
+  flex: 1;
+  display: grid;
+  grid-template-rows: repeat(15, 1fr);
+  gap: 2px;
+  min-height: 0;
+}
+
+.master-board-cell {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 500;
+  font-family: var(--font), sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.master-board-cell.called.col-b {
+  background: #ef4444;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  border-color: #f87171;
+}
+
+.master-board-cell.called.col-i {
+  background: #f59e0b;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+  border-color: #fbbf24;
+}
+
+.master-board-cell.called.col-n {
+  background: #10b981;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  border-color: #34d399;
+}
+
+.master-board-cell.called.col-g {
+  background: #0284c7;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(2, 132, 199, 0.6);
+  border-color: #38bdf8;
+}
+
+.master-board-cell.called.col-o {
+  background: #8b5cf6;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
+  border-color: #a78bfa;
+}
+
+/* ── CARTELLA CARD (5x5 BINGO CARD) ─────────────── */
+.cartella-card {
+  background: linear-gradient(180deg, #131724 0%, #0a0d16 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  height: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cartella-card.near-bingo {
+  border-color: rgba(245, 158, 11, 0.8) !important;
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+.cartella-card--compact .cartella-grid {
+  gap: 2px;
+  padding: 3px;
+}
+
+.cartella-card--compact .cartella-cell {
+  font-size: 10px;
+  border-radius: 4px;
+}
+
+.cartella-card--compact .cartella-header {
+  font-size: 10px;
+  padding: 2px 0;
+}
+
+.cartella-header {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  text-align: center;
+  font-weight: 800;
+  font-size: 11.5px;
+  padding: 4px 0;
+  letter-spacing: 0.8px;
+}
+
+.cartella-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+  padding: 4px;
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.cartella-cell {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font), sans-serif;
+  user-select: none;
+  transition: all 0.12s ease;
+  box-shadow: inset 0 1px 0 rgba(248, 250, 252, 0.04);
+}
+
+.cartella-cell.free {
+  background: rgba(34, 211, 238, 0.15) !important;
+  color: var(--cyan) !important;
+  font-size: 8.5px !important;
+  font-weight: 800 !important;
+  border-color: rgba(34, 211, 238, 0.4) !important;
+}
+
+.cartella-cell.daubed {
+  background: var(--cyan) !important;
+  color: #0B1120 !important;
+  border-color: #A5F3FC !important;
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.6) !important;
+  font-weight: 800 !important;
+  transform: scale(0.97);
+}
+
+.cartella-cell.winning {
+  background: var(--accent-gradient) !important;
+  color: #FFFFFF !important;
+  border-color: #C7D2FE !important;
+  box-shadow: 0 0 14px rgba(99, 102, 241, 0.8) !important;
+  font-weight: 800 !important;
+  animation: winningCellPulse 0.8s infinite alternate;
+}
+
+@keyframes winningCellPulse {
+  from { transform: scale(0.96); filter: brightness(1); }
+  to { transform: scale(1.02); filter: brightness(1.15); }
+}
+
+/* ── 3D LIVE BALL & RADAR ────────────────────────── */
+.bingo-3d-ball {
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: ballPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+}
+
+@keyframes ballPop {
+  0% { transform: scale(0.5); opacity: 0; }
+  70% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes radarBeacon {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ── HUD Top Banner Grid ─────────────────────────── */
+.bingo-hud-grid {
+  background: var(--bg-surface);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  padding: 8px;
+  margin-bottom: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.bingo-hud-card {
+  background: var(--bg-card);
+  border-radius: var(--r-sm);
+  padding: 6px 4px;
+  border: 1px solid var(--border);
+  text-align: center;
+  box-shadow: var(--sheen-top);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.bingo-hud-label {
+  font-size: 8.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  letter-spacing: 0.3px;
+}
+
+/* ── Split View Layout (Telegram Mini App Optimized) ── */
+.bingo-ball-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 6px 8px;
+  flex-shrink: 0;
+  margin-bottom: 2px;
+}
+
+.bingo-split-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.bingo-split-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+/* Optional: if you want them strictly 50/50 */
+.bingo-split-left,
+.bingo-split-right {
+  flex: 1 1 50%;
+  max-width: 50%;
+}
+
+.bingo-panel-label {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.bingo-panel-inner {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Mobile HUD tweaks ──────────────────────────────── */
+@media (max-width: 680px) {
+  .bingo-hud-grid {
+    padding: 6px 4px;
+    gap: 4px;
+  }
+
+  .bingo-hud-card {
+    padding: 5px 2px;
+  }
+
+  .bingo-hud-label {
+    font-size: 7.5px;
+    gap: 2px;
+  }
+
+  .bingo-hud-card .bingo-metric-value {
+    font-size: 11.5px;
+  }
+}
+
+@media (max-width: 360px) {
+  .bingo-hud-grid {
+    gap: 3px;
+    padding: 5px 3px;
+  }
+
+  .bingo-hud-label {
+    font-size: 7px;
+  }
+
+  .bingo-hud-card .bingo-metric-value {
+    font-size: 10.5px;
+  }
+}

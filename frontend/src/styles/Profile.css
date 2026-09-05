@@ -1,0 +1,239 @@
+/* ── Profile Page ───────────────────────────────── */
+.profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: pageFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Pro Profile Card ───────────────────────────── */
+.profile-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--sheen-card);
+  border-radius: var(--r-xl);
+  padding: 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+@media (min-width: 481px) {
+  .profile-card {
+    padding: 24px 20px;
+    gap: 22px;
+  }
+}
+
+/* ── Header Row ─────────────────────────────────── */
+.profile-header-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.avatar-box {
+  width: 46px;
+  height: 46px;
+  border-radius: var(--r-md);
+  background: var(--accent-gradient);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 600;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  position: relative;
+}
+
+@media (min-width: 481px) {
+  .avatar-box {
+    width: 52px;
+    height: 52px;
+    font-size: 20px;
+  }
+}
+
+.profile-titles {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-name {
+  font-size: 16.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.profile-username {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.profile-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--emerald);
+  background: var(--emerald-dim);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--emerald);
+  box-shadow: 0 0 6px var(--emerald);
+}
+
+/* ── Details List ───────────────────────────────── */
+.info-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.info-list-title {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13.5px;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.info-label {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.info-value {
+  color: var(--text-primary);
+  font-weight: 500;
+  letter-spacing: -0.1px;
+}
+
+/* ── Invitation Section ─────────────────────────── */
+.invite-section {
+  display: flex;
+  flex-direction: column;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.invite-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.invite-link-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  outline: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color var(--t-fast);
+}
+
+.invite-link-input:focus {
+  border-color: var(--border-accent);
+}
+
+.invite-copy-btn {
+  background: var(--accent-gradient);
+  color: white;
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px var(--accent-glow);
+  transition: all var(--t-fast);
+}
+
+.invite-copy-btn:hover {
+  opacity: 0.95;
+}
+
+.invite-copy-btn:active {
+  transform: scale(0.96);
+}
+
+/* ── Mobile Responsive Profile ───────────────────── */
+@media (max-width: 380px) {
+  .profile-card {
+    padding: 14px 10px;
+    gap: 14px;
+  }
+
+  .profile-header-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .avatar-box {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .profile-name {
+    font-size: 15px;
+  }
+
+  .profile-status-badge {
+    margin-left: auto;
+  }
+
+  .info-row {
+    padding: 10px 0;
+    font-size: 12.5px;
+  }
+
+  .invite-copy-btn {
+    padding: 9px 10px;
+    font-size: 11px;
+  }
+}

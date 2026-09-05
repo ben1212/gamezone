@@ -1,0 +1,444 @@
+/* ── Overlay ─────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: overlayFade 0.18s ease-out;
+}
+
+@keyframes overlayFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Pro Bottom Sheet ────────────────────────────── */
+.modal-sheet {
+  width: 100%;
+  max-width: var(--max-w);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-bottom: none;
+  border-radius: var(--r-2xl) var(--r-2xl) 0 0;
+  box-shadow: var(--sheen-top), 0 -12px 40px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  animation: sheetSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes sheetSlideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* ── Sheet Handle ─────────────────────────────────── */
+.modal-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, 0.2);
+  margin: 12px auto 0;
+}
+
+/* ── Sheet Header ─────────────────────────────────── */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.modal-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.modal-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.modal-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all var(--t-fast);
+}
+
+.modal-close-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.modal-close-btn:active {
+  transform: scale(0.92);
+}
+
+.modal-close-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ── Sheet Body ───────────────────────────────────── */
+.modal-body {
+  padding: 20px;
+}
+
+/* ── Method Selector Cards ────────────────────────── */
+.method-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.method-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--sheen-top);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--t-fast);
+  position: relative;
+}
+
+.method-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-strong);
+}
+
+.method-card.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+.method-card-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.1px;
+}
+
+.method-card-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ── Payment Account Box ──────────────────────────── */
+.payment-account-box {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--sheen-top);
+  border-radius: var(--r-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.payment-account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13.5px;
+}
+
+.payment-account-label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.payment-account-val {
+  color: var(--text-primary);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copy-mini-btn {
+  background: var(--accent-dim);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--r-xs);
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+
+.copy-mini-btn:hover {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 2px 8px var(--accent-glow);
+}
+
+.copy-mini-btn:active {
+  transform: scale(0.94);
+}
+
+/* ── Quick Amount Pills ───────────────────────────── */
+.quick-pills {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.quick-pill {
+  padding: 8px 0;
+  border-radius: var(--r-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--sheen-top);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--t-fast);
+  text-align: center;
+}
+
+.quick-pill:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.quick-pill.active {
+  background: var(--accent-gradient);
+  border-color: var(--accent);
+  color: white;
+  box-shadow: 0 2px 10px var(--accent-glow);
+}
+
+.quick-pill:active {
+  transform: scale(0.95);
+}
+
+/* ── Input Group ──────────────────────────────────── */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 16px;
+}
+
+.input-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+}
+
+.input-field {
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 13px 14px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 100%;
+  transition: all var(--t-fast);
+}
+
+.input-field::placeholder {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.input-field:focus {
+  border-color: var(--border-accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+  outline: none;
+}
+
+/* ── Submit & Secondary Buttons ───────────────────── */
+.modal-submit-btn {
+  width: 100%;
+  padding: 13px;
+  border-radius: var(--r-md);
+  background: var(--accent-gradient);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 4px 16px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: all var(--t-fast);
+  margin-top: 6px;
+}
+
+.modal-submit-btn:hover {
+  opacity: 0.95;
+  box-shadow: 0 6px 20px var(--accent-glow);
+}
+
+.modal-submit-btn:active {
+  transform: scale(0.97);
+}
+
+.modal-submit-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.modal-back-link {
+  width: 100%;
+  text-align: center;
+  padding: 10px 0;
+  margin-top: 4px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--t-fast);
+}
+
+.modal-back-link:hover {
+  color: var(--text-primary);
+}
+
+/* ── Error ────────────────────────────────────────── */
+.modal-error {
+  background: var(--rose-dim);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--rose);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Safe area ────────────────────────────────────── */
+.modal-safe-pad {
+  height: max(env(safe-area-inset-bottom), 14px);
+}
+
+/* ── Mobile Responsive Modal Adjustments ────────── */
+@media (max-width: 480px) {
+  .modal-header {
+    padding: 14px 16px 12px;
+  }
+
+  .modal-title {
+    font-size: 15px;
+  }
+
+  .modal-body {
+    padding: 16px 14px;
+  }
+
+  .method-grid {
+    gap: 8px;
+  }
+
+  .method-card {
+    padding: 11px 10px;
+  }
+
+  .method-card-name {
+    font-size: 13px;
+  }
+
+  .quick-pills {
+    gap: 4px;
+  }
+
+  .quick-pill {
+    padding: 7px 1px;
+    font-size: 11px;
+    letter-spacing: -0.2px;
+  }
+
+  .input-field {
+    padding: 11px 12px;
+    font-size: 14px;
+  }
+
+  .payment-account-box {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .payment-account-row {
+    font-size: 12.5px;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 360px) {
+  .modal-header {
+    padding: 12px 12px 10px;
+  }
+
+  .modal-body {
+    padding: 14px 10px;
+  }
+
+  .quick-pills {
+    gap: 3px;
+  }
+
+  .quick-pill {
+    padding: 6px 0;
+    font-size: 10px;
+  }
+
+  .method-card {
+    padding: 9px 8px;
+  }
+
+  .method-card-name {
+    font-size: 12px;
+  }
+
+  .method-card-sub {
+    font-size: 10px;
+  }
+}
+

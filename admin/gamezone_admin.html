@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>GameZone Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#070b14;--panel:#0d1320;--panel2:#111827;--line:#1d2636;
+  --text:#f5f7fb;--muted:#8994a7;--primary:#6366f1;--cyan:#22d3ee;
+  --green:#22c55e;--yellow:#f59e0b;--red:#ef4444;
+}
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+button,input,select{font:inherit}
+button{cursor:pointer;border:0}
+.app{display:flex;min-height:100vh}
+.sidebar{width:238px;background:#090e18;border-right:1px solid var(--line);padding:20px 14px;position:fixed;inset:0 auto 0 0;z-index:20}
+.brand{font-size:20px;font-weight:800;padding:5px 12px 24px;letter-spacing:-.5px}
+.brand span{color:var(--cyan)}
+.nav-label{font-size:10px;color:#667085;text-transform:uppercase;letter-spacing:1.2px;padding:15px 12px 8px}
+.nav button{width:100%;background:none;color:#9aa4b6;padding:11px 12px;border-radius:9px;text-align:left;margin:2px 0;display:flex;align-items:center;gap:11px}
+.nav button:hover,.nav button.active{background:#151d2d;color:#fff}
+.nav button.active{box-shadow:inset 2px 0 var(--primary)}
+.icon{width:20px;text-align:center;font-size:15px}
+.main{margin-left:238px;width:calc(100% - 238px)}
+.topbar{height:66px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:rgba(7,11,20,.92);position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)}
+.page-title{font-weight:700;font-size:17px}.crumb{color:var(--muted);font-size:12px;margin-top:2px}
+.admin{display:flex;align-items:center;gap:10px}.avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--cyan));display:grid;place-items:center;font-weight:800;font-size:12px}
+.content{padding:25px 28px 40px;max-width:1450px;margin:auto}
+.section{display:none}.section.active{display:block}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.head h1{font-size:23px;letter-spacing:-.5px}.head p{font-size:12px;color:var(--muted);margin-top:4px}
+.btn{padding:9px 13px;border-radius:8px;background:#161f31;color:#dce3ef;border:1px solid var(--line);font-size:12px}
+.btn.primary{background:var(--primary);color:white;border-color:var(--primary)}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.stat{min-height:112px}.stat-top{display:flex;justify-content:space-between;color:var(--muted);font-size:12px}.stat-icon{width:30px;height:30px;border-radius:8px;background:#151e30;display:grid;place-items:center}
+.value{font-size:24px;font-weight:800;margin-top:14px}.delta{font-size:11px;margin-top:5px}.up{color:var(--green)}
+.two{display:grid;grid-template-columns:1.35fr .9fr;gap:12px;margin-top:12px}
+.card-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;font-size:13px;font-weight:700}
+.muted{color:var(--muted);font-size:11px}
+.activity{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid #172031}.activity:last-child{border-bottom:0}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);margin-top:5px;flex:none}
+.activity strong{font-size:12px;font-weight:600}.activity small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:11px;background:var(--panel)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:13px}
+.search{background:var(--panel);border:1px solid var(--line);color:white;border-radius:8px;padding:10px 12px;min-width:230px;outline:none}
+.select{background:var(--panel);color:#cbd5e1;border:1px solid var(--line);border-radius:8px;padding:9px}
+table{width:100%;border-collapse:collapse;min-width:760px}
+th{font-size:10px;color:#737f94;text-transform:uppercase;letter-spacing:.6px;text-align:left;padding:12px 14px;background:#0b111c}
+td{font-size:12px;padding:13px 14px;border-top:1px solid #172031;color:#d9e0eb;white-space:nowrap}
+.user{display:flex;align-items:center;gap:9px}.mini{width:29px;height:29px;border-radius:8px;background:#182338;display:grid;place-items:center;font-size:10px;font-weight:700}
+.status{display:inline-flex;padding:4px 8px;border-radius:20px;font-size:10px;font-weight:700}
+.pending{background:#33270f;color:#fbbf24}.approved{background:#0d2c1c;color:#4ade80}.rejected{background:#351719;color:#fb7185}.active-s{background:#102b27;color:#34d399}.blocked{background:#31161a;color:#f87171}
+.amount{font-weight:700;color:#f4f7fb}
+.payment-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+.pay-big{font-size:23px;font-weight:800;margin-top:8px}
+.tabs{display:flex;gap:4px;background:#0b111c;border:1px solid var(--line);padding:4px;border-radius:9px;width:max-content;margin-bottom:14px}
+.tabs button{background:none;color:var(--muted);padding:7px 12px;border-radius:6px;font-size:11px}.tabs button.active{background:#1a2334;color:white}
+.notice{padding:12px 14px;border:1px solid #473a16;background:#1b170c;border-radius:9px;color:#d8c58c;font-size:11px;margin-bottom:14px}
+.permissions{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.perm-row{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line);font-size:12px}.switch{width:34px;height:19px;border-radius:20px;background:#273246;position:relative}.switch.on{background:var(--primary)}.switch:after{content:"";width:13px;height:13px;background:white;border-radius:50%;position:absolute;top:3px;left:3px}.switch.on:after{left:18px}
+.mobile-nav{display:none}
+@media(max-width:900px){
+ .sidebar{display:none}.main{margin-left:0;width:100%}.topbar{height:60px;padding:0 15px}.content{padding:18px 14px 82px}
+ .grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}.payment-cards{grid-template-columns:1fr 1fr}.permissions{grid-template-columns:1fr}
+ .mobile-nav{display:flex;position:fixed;z-index:30;bottom:0;left:0;right:0;height:64px;background:#0a101b;border-top:1px solid var(--line);justify-content:space-around;padding:5px}
+ .mobile-nav button{background:none;color:#758095;font-size:9px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:5px 10px}.mobile-nav button.active{color:white}
+}
+@media(max-width:520px){
+ .grid{gap:8px}.card{padding:13px}.stat{min-height:100px}.value{font-size:19px}.head h1{font-size:20px}
+ .payment-cards{grid-template-columns:1fr}.search{min-width:0;width:100%}.head{align-items:flex-start}
+ .admin .role{display:none}
+}
+</style>
+
+<style>
+/* ===== PREMIUM OVERRIDE ===== */
+:root{
+ --bg:#050810;
+ --panel:#0a101c;
+ --panel2:#0e1625;
+ --line:rgba(148,163,184,.105);
+ --line2:rgba(148,163,184,.16);
+ --text:#f8fafc;
+ --muted:#8490a5;
+ --primary:#6366f1;
+ --primary2:#818cf8;
+ --cyan:#22d3ee;
+ --green:#34d399;
+ --yellow:#fbbf24;
+ --red:#fb7185;
+}
+body{
+ background:
+ radial-gradient(circle at 80% -10%,rgba(99,102,241,.10),transparent 28%),
+ radial-gradient(circle at 15% 15%,rgba(34,211,238,.035),transparent 25%),
+ var(--bg);
+ letter-spacing:-.01em;
+}
+body:before{
+ content:"";position:fixed;inset:0;pointer-events:none;opacity:.018;
+ background-image:radial-gradient(#fff .5px,transparent .5px);background-size:5px 5px;
+}
+.sidebar{
+ background:rgba(7,11,19,.82);
+ border-right:1px solid var(--line);
+ backdrop-filter:blur(20px);
+ padding:22px 12px;
+}
+.brand{
+ padding:4px 14px 28px;
+ font-size:19px;letter-spacing:-.8px;
+}
+.brand:after{
+ content:"ADMIN";font-size:8px;letter-spacing:1.4px;color:#667085;
+ background:#111827;border:1px solid var(--line);padding:4px 6px;border-radius:5px;
+ margin-left:7px;vertical-align:2px;
+}
+.nav-label{padding:15px 13px 7px;color:#566176;font-weight:700}
+.nav button{
+ color:#7e899d;padding:10px 13px;border:1px solid transparent;
+ transition:.18s ease;
+}
+.nav button:hover{background:rgba(255,255,255,.035);color:#e5e7eb}
+.nav button.active{
+ background:linear-gradient(90deg,rgba(99,102,241,.16),rgba(99,102,241,.035));
+ border-color:rgba(99,102,241,.12);
+ color:#fff;box-shadow:none;
+}
+.topbar{
+ background:rgba(5,8,16,.78);
+ border-bottom:1px solid var(--line);
+ box-shadow:0 8px 30px rgba(0,0,0,.12);
+}
+.page-title{font-size:16px;font-weight:750}
+.crumb{font-size:11px;color:#59657a}
+.content{padding:26px 30px 42px}
+.head h1{font-size:24px;font-weight:780}
+.head p{color:#68758a}
+.card{
+ background:linear-gradient(145deg,rgba(14,22,37,.92),rgba(8,14,24,.92));
+ border:1px solid var(--line);
+ border-radius:14px;
+ box-shadow:0 10px 35px rgba(0,0,0,.12);
+ transition:transform .18s,border-color .18s,box-shadow .18s;
+}
+.card:hover{border-color:rgba(148,163,184,.16);box-shadow:0 14px 42px rgba(0,0,0,.18)}
+.stat{position:relative;overflow:hidden}
+.stat:after{
+ content:"";position:absolute;width:100px;height:100px;border-radius:50%;
+ right:-50px;top:-55px;background:rgba(99,102,241,.06);filter:blur(2px)
+}
+.stat-top{font-weight:600;color:#8d98ab}
+.stat-icon{background:#111a2b;border:1px solid var(--line2)}
+.value{font-size:25px;letter-spacing:-1px}
+.delta{color:#66758b}
+.delta.up{color:#34d399}
+.payment-cards .card{min-height:120px}
+.payment-cards .card:nth-child(1){border-color:rgba(251,191,36,.13)}
+.payment-cards .card:nth-child(2){border-color:rgba(251,113,133,.13)}
+.payment-cards .card:nth-child(3){border-color:rgba(34,211,238,.13)}
+.pay-big{letter-spacing:-.8px}
+.btn{
+ background:#111a2a;border:1px solid var(--line2);color:#cbd5e1;
+ border-radius:8px;transition:.18s ease;font-weight:600;
+}
+.btn:hover{background:#172237;border-color:rgba(148,163,184,.25);transform:translateY(-1px)}
+.btn.primary{
+ background:linear-gradient(135deg,#6366f1,#5457dc);
+ border-color:#7073f4;
+ box-shadow:0 5px 18px rgba(99,102,241,.18);
+}
+.btn.primary:hover{filter:brightness(1.08)}
+.search,.select{
+ background:#0b1220;border-color:var(--line2);
+ transition:.18s;
+}
+.search:focus,.select:focus{
+ border-color:rgba(99,102,241,.55);
+ box-shadow:0 0 0 3px rgba(99,102,241,.10);
+}
+.table-wrap{border-color:var(--line);box-shadow:0 10px 35px rgba(0,0,0,.12)}
+th{background:#0b111d;color:#68758a;font-weight:700}
+td{border-color:var(--line);color:#d8deea}
+tbody tr{transition:.15s}
+tbody tr:hover{background:rgba(99,102,241,.035)}
+.mini{
+ background:linear-gradient(135deg,#18243a,#111827);
+ border:1px solid var(--line2);
+}
+.status{border:1px solid transparent}
+.pending{background:rgba(245,158,11,.09);color:#fbbf24;border-color:rgba(245,158,11,.13)}
+.approved,.active-s{background:rgba(34,197,94,.08);color:#4ade80;border-color:rgba(34,197,94,.12)}
+.rejected,.blocked{background:rgba(239,68,68,.08);color:#fb7185;border-color:rgba(239,68,68,.12)}
+.tabs{
+ background:#080e19;border-color:var(--line);box-shadow:inset 0 1px rgba(255,255,255,.02)
+}
+.tabs button.active{background:#182237;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.notice{
+ background:rgba(245,158,11,.045);
+ border-color:rgba(245,158,11,.14);
+}
+.activity{border-color:var(--line)}
+.activity:hover{background:rgba(255,255,255,.012)}
+.dot{box-shadow:0 0 0 4px rgba(34,197,94,.06)}
+.avatar{
+ box-shadow:0 0 0 3px rgba(99,102,241,.10),0 5px 18px rgba(99,102,241,.15);
+}
+.mobile-nav{
+ background:rgba(8,13,23,.88);
+ border-top-color:var(--line);
+ backdrop-filter:blur(18px);
+ box-shadow:0 -10px 30px rgba(0,0,0,.16);
+}
+.mobile-nav button{transition:.15s}
+.mobile-nav button.active{color:#a5b4fc}
+.mobile-nav button.active:before{
+ content:"";position:absolute;top:0;width:25px;height:2px;border-radius:2px;background:#818cf8;
+}
+.mobile-nav button{position:relative}
+@media(max-width:900px){
+ .topbar{padding:0 16px}
+ .content{padding:18px 14px 84px}
+ .head{margin-bottom:16px}
+}
+@media(max-width:520px){
+ .brand:after{display:none}
+ .head h1{font-size:20px}
+ .value{font-size:20px}
+ .card{border-radius:12px}
+}
+</style>
+
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand">GAME<span>ZONE</span></div>
+  <div class="nav">
+    <div class="nav-label">Operations</div>
+    <button class="active" data-page="overview">◉ <span>Overview</span></button>
+    <button data-page="payments">▣ <span>Payments</span></button>
+    <button data-page="users">♙ <span>Users</span></button>
+    <button data-page="reports">▤ <span>Reports</span></button>
+    <div class="nav-label">Administration</div>
+    <button data-page="admins">◆ <span>Admin Control</span></button>
+    <button data-page="settings">⚙ <span>Settings</span></button>
+  </div>
+</aside>
+
+<main class="main">
+<header class="topbar">
+  <div><div class="page-title" id="pageTitle">Overview</div><div class="crumb">GameZone / <span id="crumb">Overview</span></div></div>
+  <div class="admin"><span class="role status active-s">● Live</span><span class="role muted">Super Admin</span><div class="avatar">BA</div></div>
+</header>
+
+<div class="content">
+
+<section class="section active" id="overview">
+ <div class="head"><div><h1>Good morning, Admin</h1><p>Here’s what is happening across GameZone today.</p></div><button class="btn">↻ Refresh</button></div>
+ <div class="grid">
+  <div class="card stat"><div class="stat-top">Total Users <span class="stat-icon">♙</span></div><div class="value">18,492</div><div class="delta up">+4.8% this month</div></div>
+  <div class="card stat"><div class="stat-top">Online Now <span class="stat-icon">●</span></div><div class="value">247</div><div class="delta up">+18 in last hour</div></div>
+  <div class="card stat"><div class="stat-top">Today's Deposits <span class="stat-icon">↓</span></div><div class="value">86,420 ETB</div><div class="delta up">+12.4% vs yesterday</div></div>
+  <div class="card stat"><div class="stat-top">Today's Withdrawals <span class="stat-icon">↑</span></div><div class="value">41,850 ETB</div><div class="delta">32 completed · 7 pending</div></div>
+ </div>
+ <div class="two">
+  <div class="card"><div class="card-title">Payment Activity <span class="muted">Today</span></div>
+   <div style="height:180px;display:flex;align-items:end;gap:8px;padding:15px 5px">
+    <div style="height:35%;flex:1;background:#28334b;border-radius:4px 4px 0 0"></div><div style="height:52%;flex:1;background:#354363;border-radius:4px 4px 0 0"></div><div style="height:42%;flex:1;background:#2d3b59;border-radius:4px 4px 0 0"></div><div style="height:67%;flex:1;background:#43527a;border-radius:4px 4px 0 0"></div><div style="height:54%;flex:1;background:#596a9a;border-radius:4px 4px 0 0"></div><div style="height:78%;flex:1;background:#6675ad;border-radius:4px 4px 0 0"></div><div style="height:62%;flex:1;background:#7382c2;border-radius:4px 4px 0 0"></div><div style="height:88%;flex:1;background:#818cf8;border-radius:4px 4px 0 0"></div>
+   </div>
+   <div style="display:flex;justify-content:space-between;color:#68758b;font-size:9px"><span>8AM</span><span>10AM</span><span>12PM</span><span>2PM</span><span>4PM</span></div>
+  </div>
+  <div class="card"><div class="card-title">Live Activity <span class="status active-s">LIVE</span></div>
+   <div class="activity"><i class="dot"></i><div><strong>Deposit approved</strong><small>Player #10284 · 500 ETB · 2m ago</small></div></div>
+   <div class="activity"><i class="dot"></i><div><strong>Withdrawal requested</strong><small>Player #08412 · 1,200 ETB · 4m ago</small></div></div>
+   <div class="activity"><i class="dot"></i><div><strong>New player registered</strong><small>@abebe_21 · 7m ago</small></div></div>
+   <div class="activity"><i class="dot"></i><div><strong>Deposit approved</strong><small>Player #19021 · 1,000 ETB · 9m ago</small></div></div>
+  </div>
+ </div>
+</section>
+
+<section class="section" id="payments">
+ <div class="head"><div><h1>Payments</h1><p>Review and manage deposits, withdrawals and transactions.</p></div><button class="btn primary">+ Payment Action</button></div>
+ <div class="payment-cards">
+  <div class="card"><div class="muted">Pending Deposits</div><div class="pay-big">14,250 ETB</div><div class="muted" style="margin-top:5px">23 transactions</div></div>
+  <div class="card"><div class="muted">Pending Withdrawals</div><div class="pay-big">18,700 ETB</div><div class="muted" style="margin-top:5px">7 transactions</div></div>
+  <div class="card"><div class="muted">Today's Volume</div><div class="pay-big">128,270 ETB</div><div class="muted" style="margin-top:5px">119 transactions</div></div>
+ </div>
+ <div class="tabs"><button class="active" onclick="paymentTab(this,'deposit')">Deposits</button><button onclick="paymentTab(this,'withdrawal')">Withdrawals</button><button onclick="paymentTab(this,'all')">All Transactions</button></div>
+ <div class="toolbar"><input class="search" placeholder="Search player, transaction ID..."><select class="select"><option>All Status</option><option>Pending</option><option>Approved</option><option>Rejected</option></select><select class="select"><option>All Methods</option><option>Telebirr</option><option>CBE Birr</option></select></div>
+ <div class="table-wrap"><table><thead><tr><th>Transaction</th><th>Player</th><th>Amount</th><th>Method</th><th>Status</th><th>Time</th><th></th></tr></thead>
+ <tbody id="paymentRows">
+  <tr><td>#DP-20841</td><td><div class="user"><span class="mini">AB</span> @abebe_21</div></td><td class="amount">500 ETB</td><td>Telebirr</td><td><span class="status pending">Pending</span></td><td>09:18</td><td><button class="btn">Review</button></td></tr>
+  <tr><td>#DP-20840</td><td><div class="user"><span class="mini">MK</span> @mekdes7</div></td><td class="amount">1,000 ETB</td><td>Telebirr</td><td><span class="status approved">Approved</span></td><td>09:12</td><td><button class="btn">View</button></td></tr>
+  <tr><td>#WD-10921</td><td><div class="user"><span class="mini">DA</span> @dani_11</div></td><td class="amount">1,200 ETB</td><td>CBE Birr</td><td><span class="status pending">Pending</span></td><td>09:07</td><td><button class="btn">Review</button></td></tr>
+  <tr><td>#DP-20838</td><td><div class="user"><span class="mini">HN</span> @hana22</div></td><td class="amount">300 ETB</td><td>Telebirr</td><td><span class="status rejected">Rejected</span></td><td>08:54</td><td><button class="btn">View</button></td></tr>
+ </tbody></table></div>
+</section>
+
+<section class="section" id="users">
+ <div class="head"><div><h1>Users</h1><p>Limited account management and player review.</p></div><button class="btn">Export</button></div>
+ <div class="toolbar"><input class="search" placeholder="Search name, username, Player ID..."><select class="select"><option>All Accounts</option><option>Active</option><option>Restricted</option><option>Suspended</option></select></div>
+ <div class="table-wrap"><table><thead><tr><th>Player</th><th>ID</th><th>Balance</th><th>Account</th><th>Joined</th><th>Last Active</th><th></th></tr></thead><tbody>
+ <tr><td><div class="user"><span class="mini">BE</span> <div>Bini Eyoel<small class="muted">@bini</small></div></div></td><td>#102938</td><td class="amount">2,450 ETB</td><td><span class="status active-s">Active</span></td><td>Sep 03</td><td>2m ago</td><td><button class="btn">View</button></td></tr>
+ <tr><td><div class="user"><span class="mini">MK</span> Mekdes K.</div></td><td>#102941</td><td class="amount">820 ETB</td><td><span class="status active-s">Active</span></td><td>Sep 02</td><td>12m ago</td><td><button class="btn">View</button></td></tr>
+ <tr><td><div class="user"><span class="mini">DA</span> Daniel A.</div></td><td>#102955</td><td class="amount">3,100 ETB</td><td><span class="status pending">Restricted</span></td><td>Aug 29</td><td>1h ago</td><td><button class="btn">Review</button></td></tr>
+ </tbody></table></div>
+</section>
+
+<section class="section" id="reports">
+ <div class="head"><div><h1>Reports</h1><p>Financial and operational reporting.</p></div><button class="btn primary">Export Report</button></div>
+ <div class="grid">
+  <div class="card stat"><div class="stat-top">Deposit Volume</div><div class="value">1.84M</div><div class="muted">Last 30 days · ETB</div></div>
+  <div class="card stat"><div class="stat-top">Withdrawal Volume</div><div class="value">926K</div><div class="muted">Last 30 days · ETB</div></div>
+  <div class="card stat"><div class="stat-top">Transactions</div><div class="value">8,421</div><div class="muted">Last 30 days</div></div>
+  <div class="card stat"><div class="stat-top">Active Players</div><div class="value">6,820</div><div class="muted">Last 30 days</div></div>
+ </div>
+ <div class="card" style="margin-top:12px"><div class="card-title">Available reports</div>
+  <div class="activity"><i class="dot"></i><div><strong>Deposit Report</strong><small>Complete deposit transactions and approval history</small></div><button class="btn" style="margin-left:auto">Export</button></div>
+  <div class="activity"><i class="dot"></i><div><strong>Withdrawal Report</strong><small>Withdrawal requests, processing and completion history</small></div><button class="btn" style="margin-left:auto">Export</button></div>
+  <div class="activity"><i class="dot"></i><div><strong>Wallet Movement</strong><small>Account balance changes with source and audit references</small></div><button class="btn" style="margin-left:auto">Export</button></div>
+ </div>
+</section>
+
+<section class="section" id="admins">
+ <div class="head"><div><h1>Admin Control</h1><p>Manage administrator access and permissions.</p></div><button class="btn primary">+ Add Admin</button></div>
+ <div class="permissions">
+  <div class="card"><div class="card-title">Super Admin <span class="status approved">1 user</span></div>
+   <div class="perm-row">View users <span class="switch on"></span></div><div class="perm-row">Manage payments <span class="switch on"></span></div><div class="perm-row">Manage admins <span class="switch on"></span></div><div class="perm-row">System settings <span class="switch on"></span></div>
+  </div>
+  <div class="card"><div class="card-title">Finance Admin <span class="status approved">2 users</span></div>
+   <div class="perm-row">View users <span class="switch on"></span></div><div class="perm-row">Manage payments <span class="switch on"></span></div><div class="perm-row">Manage admins <span class="switch"></span></div><div class="perm-row">System settings <span class="switch"></span></div>
+  </div>
+  <div class="card"><div class="card-title">Support Admin <span class="status approved">3 users</span></div>
+   <div class="perm-row">View users <span class="switch on"></span></div><div class="perm-row">Manage payments <span class="switch"></span></div><div class="perm-row">Manage admins <span class="switch"></span></div><div class="perm-row">System settings <span class="switch"></span></div>
+  </div>
+ </div>
+ <div class="card" style="margin-top:12px"><div class="card-title">Audit Log</div><div class="activity"><i class="dot"></i><div><strong>Finance Admin approved withdrawal #WD-10918</strong><small>09:01 · Admin ID #A002</small></div></div><div class="activity"><i class="dot"></i><div><strong>Support Admin restricted player #102955</strong><small>08:43 · Reason: account review</small></div></div></div>
+</section>
+
+<section class="section" id="settings">
+ <div class="head"><div><h1>Settings</h1><p>Platform-level administrative configuration.</p></div></div>
+ <div class="notice">Game controls are intentionally not available here. This area controls administration, payment configuration and security only.</div>
+ <div class="card">
+  <div class="perm-row">Payment review requirement <span class="status approved">Enabled</span></div>
+  <div class="perm-row">Admin audit logging <span class="status approved">Enabled</span></div>
+  <div class="perm-row">Two-factor authentication <span class="status approved">Required</span></div>
+  <div class="perm-row">Maintenance mode <span class="status">Disabled</span></div>
+ </div>
+</section>
+
+</div>
+</main>
+</div>
+
+<nav class="mobile-nav">
+ <button class="active" data-page="overview">◉<span>Home</span></button>
+ <button data-page="payments">▣<span>Payments</span></button>
+ <button data-page="users">♙<span>Users</span></button>
+ <button data-page="reports">▤<span>Reports</span></button>
+ <button data-page="admins">◆<span>Admin</span></button>
+</nav>
+
+<script>
+const buttons=document.querySelectorAll('[data-page]');
+const sections=document.querySelectorAll('.section');
+const title=document.getElementById('pageTitle'), crumb=document.getElementById('crumb');
+buttons.forEach(btn=>btn.addEventListener('click',()=>{
+ const page=btn.dataset.page;
+ sections.forEach(s=>s.classList.toggle('active',s.id===page));
+ buttons.forEach(b=>b.classList.toggle('active',b.dataset.page===page));
+ const name=page==='admins'?'Admin Control':page[0].toUpperCase()+page.slice(1);
+ title.textContent=name; crumb.textContent=name;
+ window.scrollTo({top:0,behavior:'smooth'});
+}));
+function paymentTab(el,type){
+ document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));el.classList.add('active');
+ const rows=document.querySelectorAll('#paymentRows tr');
+ rows.forEach(r=>{
+  const id=r.children[0].textContent;
+  r.style.display=(type==='deposit'&&id.startsWith('#WD'))||(type==='withdrawal'&&id.startsWith('#DP'))?'none':'';
+  document.querySelectorAll('#payments .mobile-card').forEach(c=>{ const t=c.innerText; c.style.display=(type==='deposit'&&t.includes('#WD'))||(type==='withdrawal'&&t.includes('#DP'))?'none':''; });
+ });
+}
+</script>
+
+<style>
+/* ===== GAMEZONE MOBILE-FIRST V2 ===== */
+.mobile-only{display:none}
+.mobile-card-list{display:none}
+.payment-review{display:none}
+.back-btn{display:none}
+@media(max-width:900px){
+  body{font-size:14px}
+  .content{max-width:680px;margin:auto}
+  .desktop-table{display:none!important}
+  .mobile-card-list{display:block}
+  .mobile-card{
+    background:linear-gradient(145deg,#0e1625,#090f1a);
+    border:1px solid rgba(148,163,184,.11);
+    border-radius:13px;padding:14px;margin-bottom:9px;
+    box-shadow:0 8px 25px rgba(0,0,0,.13)
+  }
+  .mobile-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .mobile-card-main{display:flex;align-items:center;gap:10px;min-width:0}
+  .mobile-card-name{font-size:12px;font-weight:700}
+  .mobile-card-sub{font-size:10px;color:#718096;margin-top:3px}
+  .mobile-card-amount{font-size:17px;font-weight:800;white-space:nowrap}
+  .mobile-card-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:13px 0;padding-top:11px;border-top:1px solid var(--line)}
+  .meta-label{font-size:9px;color:#69768a;text-transform:uppercase;letter-spacing:.5px}
+  .meta-value{font-size:11px;margin-top:3px;color:#d7deea}
+  .mobile-card-actions{display:flex;gap:7px}
+  .mobile-card-actions .btn{flex:1;text-align:center}
+  .sticky-tools{position:sticky;top:60px;z-index:8;background:rgba(5,8,16,.94);padding:9px 0 11px;backdrop-filter:blur(14px)}
+  .sticky-tools .search{width:100%;margin-bottom:7px}
+  .filter-row{display:flex;gap:7px;overflow:auto;padding-bottom:2px;scrollbar-width:none}
+  .filter-row::-webkit-scrollbar{display:none}
+  .filter-chip{white-space:nowrap;padding:7px 10px;border-radius:7px;background:#0c1422;color:#7d899d;border:1px solid var(--line);font-size:10px}
+  .filter-chip.active{color:white;background:#1a2336;border-color:rgba(129,140,248,.28)}
+  .payment-cards{grid-template-columns:repeat(2,1fr)}
+  .payment-cards .card:last-child{grid-column:1/-1}
+  .mobile-only{display:block}
+}
+@media(max-width:520px){
+  .content{padding:14px 11px 88px}
+  .topbar{height:58px}
+  .page-title{font-size:15px}
+  .crumb{display:none}
+  .admin .role:first-child{display:none}
+  .head{margin-bottom:11px}
+  .head p{font-size:10px;line-height:1.4}
+  .head .btn{font-size:10px;padding:8px}
+  .grid{grid-template-columns:repeat(2,1fr);gap:7px}
+  .stat{min-height:91px;padding:11px}
+  .stat-top{font-size:10px}
+  .stat-icon{width:26px;height:26px}
+  .value{font-size:17px;margin-top:10px}
+  .delta{font-size:9px}
+  .two{gap:8px;margin-top:8px}
+  .two .card{padding:12px}
+  .two .card:first-child{min-height:210px}
+  .payment-cards{gap:7px}
+  .payment-cards .card{min-height:96px;padding:12px}
+  .pay-big{font-size:18px}
+  .payment-cards .muted{font-size:9px}
+  .tabs{width:100%;justify-content:stretch;margin-bottom:0}
+  .tabs button{flex:1;padding:8px 4px;font-size:9px}
+  .toolbar{display:none}
+  .table-wrap{display:none}
+  .mobile-card-list{margin-top:7px}
+  .mobile-card{padding:12px}
+  .mobile-card-amount{font-size:16px}
+  .mobile-card-actions .btn{padding:9px 7px;font-size:10px}
+  .section>.head h1{font-size:20px}
+  .permissions{gap:8px}
+  .permissions .card{padding:12px}
+  .perm-row{font-size:11px}
+}
+
+/* Payment review screen */
+.review-screen{position:fixed;inset:0;background:#050810;z-index:100;display:none;overflow:auto}
+.review-screen.open{display:block}
+.review-top{height:60px;display:flex;align-items:center;gap:11px;padding:0 14px;border-bottom:1px solid var(--line);background:rgba(5,8,16,.95);position:sticky;top:0;z-index:2;backdrop-filter:blur(15px)}
+.back-btn{display:grid;place-items:center;width:34px;height:34px;border-radius:8px;background:#111a2a;color:white;border:1px solid var(--line)}
+.review-title{font-size:14px;font-weight:750}
+.review-body{max-width:620px;margin:auto;padding:15px 13px 35px}
+.review-hero{
+ text-align:center;padding:22px 15px;border:1px solid rgba(99,102,241,.15);
+ border-radius:15px;background:radial-gradient(circle at 50% 0,rgba(99,102,241,.12),transparent 58%),#0b111d;
+}
+.review-amount{font-size:31px;font-weight:850;letter-spacing:-1.2px;margin:7px 0}
+.review-label{font-size:10px;color:#778398}
+.review-block{margin-top:9px;background:#0b111d;border:1px solid var(--line);border-radius:13px;padding:14px}
+.review-block-title{font-size:11px;font-weight:750;margin-bottom:11px}
+.detail{display:flex;justify-content:space-between;gap:20px;padding:9px 0;border-bottom:1px solid var(--line);font-size:11px}
+.detail:last-child{border:0}.detail span:first-child{color:#69768a}.detail span:last-child{text-align:right;color:#e2e8f0}
+.receipt{height:190px;border:1px dashed #33415a;border-radius:9px;display:grid;place-items:center;color:#67758a;font-size:11px;background:#080e18}
+.review-actions{display:grid;grid-template-columns:1fr 1.3fr;gap:8px;margin-top:12px}
+.review-actions button{height:46px;border-radius:10px;font-weight:750}
+.reject{background:#2a1218;color:#fb7185;border:1px solid rgba(251,113,133,.18)}
+.approve{background:linear-gradient(135deg,#16a34a,#22c55e);color:white;box-shadow:0 8px 25px rgba(34,197,94,.12)}
+</style>
+
+<div class="review-screen" id="reviewScreen">
+ <div class="review-top">
+   <button class="back-btn" onclick="closeReview()">←</button>
+   <div><div class="review-title">Review Deposit</div><div class="muted">#DP-20841</div></div>
+ </div>
+ <div class="review-body">
+   <div class="review-hero">
+     <div class="review-label">DEPOSIT AMOUNT</div>
+     <div class="review-amount">500 ETB</div>
+     <span class="status pending">PENDING REVIEW</span>
+   </div>
+   <div class="review-block">
+     <div class="review-block-title">Transaction Details</div>
+     <div class="detail"><span>Player</span><span>@abebe_21</span></div>
+     <div class="detail"><span>Player ID</span><span>#10284</span></div>
+     <div class="detail"><span>Payment Method</span><span>Telebirr</span></div>
+     <div class="detail"><span>Reference</span><span>TX92838192</span></div>
+     <div class="detail"><span>Submitted</span><span>09:18 · Sep 05</span></div>
+   </div>
+   <div class="review-block">
+     <div class="review-block-title">Payment Proof</div>
+     <div class="receipt">Receipt / SMS proof preview</div>
+   </div>
+   <div class="review-block">
+     <div class="review-block-title">Account Snapshot</div>
+     <div class="detail"><span>Current balance</span><span>1,850 ETB</span></div>
+     <div class="detail"><span>Total deposits</span><span>4,500 ETB</span></div>
+     <div class="detail"><span>Account status</span><span class="status active-s">Active</span></div>
+   </div>
+   <div class="review-actions">
+     <button class="reject" onclick="closeReview()">Reject</button>
+     <button class="approve" onclick="approvePayment()">Approve Deposit</button>
+   </div>
+ </div>
+</div>
+
+<script>
+function openReview(){
+ const s=document.getElementById('reviewScreen');
+ if(s)s.classList.add('open');
+}
+function closeReview(){
+ const s=document.getElementById('reviewScreen');
+ if(s)s.classList.remove('open');
+}
+function approvePayment(){
+ const ok=confirm('Approve this 500 ETB deposit?');
+ if(ok){ alert('Deposit approved successfully.'); closeReview(); }
+}
+/* Convert payment/user tables into phone-friendly cards without changing desktop markup. */
+document.addEventListener('DOMContentLoaded',()=>{
+ const paymentTable=document.querySelector('#paymentRows');
+ if(paymentTable){
+  const wrap=document.createElement('div'); wrap.className='mobile-card-list';
+  [...paymentTable.querySelectorAll('tr')].forEach(tr=>{
+   const c=tr.children;if(!c.length)return;
+   const id=c[0]?.textContent.trim()||'';
+   const player=c[1]?.innerText.trim()||'';
+   const amount=c[2]?.textContent.trim()||'';
+   const method=c[3]?.textContent.trim()||'';
+   const status=c[4]?.innerHTML||'';
+   const time=c[5]?.textContent.trim()||'';
+   const review=id.startsWith('#DP')&&status.includes('pending');
+   wrap.insertAdjacentHTML('beforeend',`
+    <div class="mobile-card">
+     <div class="mobile-card-head">
+      <div class="mobile-card-main"><span class="mini">${player.slice(0,2).toUpperCase()}</span><div><div class="mobile-card-name">${player}</div><div class="mobile-card-sub">${id}</div></div></div>
+      <div style="text-align:right"><div class="mobile-card-amount">${amount}</div>${status}</div>
+     </div>
+     <div class="mobile-card-meta"><div><div class="meta-label">Method</div><div class="meta-value">${method}</div></div><div><div class="meta-label">Time</div><div class="meta-value">${time}</div></div></div>
+     <div class="mobile-card-actions"><button class="btn" onclick="${review?'openReview()':''}">${review?'Review':'View Details'}</button></div>
+    </div>`);
+  });
+  document.querySelector('#payments').appendChild(wrap);
+ }
+ const userTable=document.querySelector('#users table tbody');
+ if(userTable){
+  const wrap=document.createElement('div');wrap.className='mobile-card-list';
+  [...userTable.querySelectorAll('tr')].forEach(tr=>{
+   const c=tr.children;if(!c.length)return;
+   const player=c[0]?.innerText.trim()||'',id=c[1]?.textContent.trim()||'',bal=c[2]?.textContent.trim()||'',stat=c[3]?.innerHTML||'',joined=c[4]?.textContent.trim()||'',last=c[5]?.textContent.trim()||'';
+   wrap.insertAdjacentHTML('beforeend',`
+    <div class="mobile-card"><div class="mobile-card-head">
+     <div class="mobile-card-main"><span class="mini">${player.slice(0,2).toUpperCase()}</span><div><div class="mobile-card-name">${player.split('\\n')[0]}</div><div class="mobile-card-sub">${id}</div></div></div>
+     <div style="text-align:right"><div class="mobile-card-amount">${bal}</div>${stat}</div></div>
+     <div class="mobile-card-meta"><div><div class="meta-label">Joined</div><div class="meta-value">${joined}</div></div><div><div class="meta-label">Last active</div><div class="meta-value">${last}</div></div></div>
+     <div class="mobile-card-actions"><button class="btn">View Player</button></div></div>`);
+  });
+  document.querySelector('#users').appendChild(wrap);
+ }
+});
+</script>
+</body>
+</html>

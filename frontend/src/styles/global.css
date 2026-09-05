@@ -1,0 +1,194 @@
+@import './variables.css';
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+/* ── Reset & Baseline ──────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Professional Typography Baseline ──────────── */
+h1 { font-weight: 700; letter-spacing: -0.02em; }
+h2, h3 { font-weight: 600; letter-spacing: -0.015em; }
+h4, h5, h6 { font-weight: 600; }
+p, span, div, label, input { font-weight: 400; }
+b, strong { font-weight: 600; }
+
+html {
+  font-size: 16px;
+  background-color: var(--bg-root);
+  color-scheme: dark;
+}
+
+body {
+  height: 100%;
+  min-height: 100vh;
+  background-color: var(--bg-root);
+  background-image: 
+    radial-gradient(ellipse 60% 35% at 50% -5%, rgba(99, 102, 241, 0.12), transparent 60%),
+    radial-gradient(circle 320px at 95% 10%, rgba(34, 211, 238, 0.06), transparent 70%),
+    radial-gradient(circle 350px at 5% 90%, rgba(99, 102, 241, 0.05), transparent 70%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  outline: none;
+  transition: transform var(--t-fast), opacity var(--t-fast), filter var(--t-fast);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+input, textarea {
+  font-family: inherit;
+  outline: none;
+}
+
+/* ── Custom Sleek Scrollbars ───────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── App Shell ─────────────────────────────────── */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ── Main Content Container ────────────────────── */
+.main-scroll {
+  flex: 1;
+  width: 100%;
+  padding: 58px 12px calc(68px + env(safe-area-inset-bottom, 12px));
+  box-sizing: border-box;
+}
+
+.page-container {
+  width: 100%;
+  max-width: var(--max-w);
+  margin: 0 auto;
+  animation: pageFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Pro Back Button ───────────────────────────── */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 18px;
+  padding: 7px 14px 7px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--sheen-top);
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), transform var(--t-fast);
+}
+
+.back-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.back-btn:active {
+  transform: scale(0.96);
+}
+
+.back-btn svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+}
+
+/* ── Pro Floating Toast ────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: calc(76px + env(safe-area-inset-bottom, 12px));
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-accent);
+  color: var(--text-primary);
+  padding: 10px 18px;
+  border-radius: var(--r-full);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6), 0 0 16px var(--accent-glow);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: toastPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes toastPop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+/* ── Mobile Responsive Global Adjustments ────────── */
+@media (max-width: 480px) {
+  .main-scroll {
+    padding: 60px 10px calc(76px + env(safe-area-inset-bottom, 14px));
+  }
+
+  .toast {
+    max-width: calc(100vw - 32px);
+    white-space: normal;
+    text-align: center;
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+}
