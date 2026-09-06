@@ -142,121 +142,8 @@ export const App: React.FC = () => {
     }
   };
 
-  // ── Transactions & Cashier State ──
-  const [transactions, setTransactions] = useState<TransactionItem[]>([
-    {
-      id: 'DP48291',
-      userId: '10284',
-      playerName: 'Abebe T.',
-      username: '@player_284',
-      phone: '+251911002233',
-      amount: 500,
-      currency: 'ETB',
-      category: 'deposit',
-      method: 'Telebirr',
-      smsRef: 'TB-998822441',
-      status: 'pending',
-      time: '2 min ago',
-    },
-    {
-      id: 'DP48289',
-      userId: '10295',
-      playerName: 'Mekdes K.',
-      username: '@mekdes_bingo',
-      phone: '+251922334455',
-      amount: 250,
-      currency: 'ETB',
-      category: 'deposit',
-      method: 'Telebirr',
-      smsRef: 'TB-334411990',
-      status: 'pending',
-      time: '6 min ago',
-    },
-    {
-      id: 'DP48288',
-      userId: '10288',
-      playerName: 'Daniel A.',
-      username: '@bingo_player',
-      phone: '+251933445566',
-      amount: 1000,
-      currency: 'ETB',
-      category: 'deposit',
-      method: 'CBE Birr',
-      smsRef: 'CBE-77112233',
-      status: 'pending',
-      time: '9 min ago',
-    },
-    {
-      id: 'WD17402',
-      userId: '10293',
-      playerName: 'Yosef B.',
-      username: '@player_931',
-      phone: '+251944556677',
-      accountNumber: '0944556677 (Telebirr)',
-      amount: 300,
-      currency: 'ETB',
-      category: 'withdrawal',
-      method: 'Telebirr',
-      status: 'pending',
-      time: '5 min ago',
-    },
-    {
-      id: 'WD17396',
-      userId: '10282',
-      playerName: 'Helen G.',
-      username: '@player_482',
-      phone: '+251911889900',
-      accountNumber: '100049281920 (CBE)',
-      amount: 750,
-      currency: 'ETB',
-      category: 'withdrawal',
-      method: 'CBE Bank',
-      status: 'pending',
-      time: '14 min ago',
-    },
-    {
-      id: 'DP48270',
-      userId: '10201',
-      playerName: 'Ermias D.',
-      username: '@ermi_2026',
-      phone: '+251912345678',
-      amount: 500,
-      currency: 'ETB',
-      category: 'deposit',
-      method: 'Telebirr',
-      smsRef: 'TB-102938475',
-      status: 'completed',
-      time: '25 min ago',
-    },
-    {
-      id: 'WD17380',
-      userId: '10214',
-      playerName: 'Sara M.',
-      username: '@sara_win',
-      phone: '+251911998877',
-      accountNumber: '0911998877',
-      amount: 450,
-      currency: 'ETB',
-      category: 'withdrawal',
-      method: 'Telebirr',
-      status: 'completed',
-      time: '38 min ago',
-    },
-    {
-      id: 'DP48260',
-      userId: '10299',
-      playerName: 'Kaleb S.',
-      username: '@kaleb_99',
-      phone: '+251922001122',
-      amount: 300,
-      currency: 'ETB',
-      category: 'deposit',
-      method: 'Telebirr',
-      smsRef: 'INVALID_REF',
-      status: 'rejected',
-      time: '1 hour ago',
-    },
-  ]);
+  // ── Transactions State (Deposits & Withdrawals Queue) ──
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
 
   // Modals & Selection
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
@@ -266,88 +153,7 @@ export const App: React.FC = () => {
   const [txSearch, setTxSearch] = useState<string>('');
 
   // ── Users State ──
-  const [users, setUsers] = useState<UserItem[]>([
-    {
-      id: '10284',
-      name: 'Abebe T.',
-      username: '@player_284',
-      phone: '+251911002233',
-      playableBalance: 1450,
-      withdrawableBalance: 650,
-      totalDeposited: 12500,
-      totalWithdrawn: 8400,
-      totalWagered: 45200,
-      winCount: 42,
-      lossCount: 38,
-      status: 'active',
-      joinedDate: 'Aug 14, 2026',
-      lastActive: 'Just now',
-    },
-    {
-      id: '10295',
-      name: 'Mekdes K.',
-      username: '@mekdes_bingo',
-      phone: '+251922334455',
-      playableBalance: 520,
-      withdrawableBalance: 320,
-      totalDeposited: 4200,
-      totalWithdrawn: 3100,
-      totalWagered: 18400,
-      winCount: 18,
-      lossCount: 22,
-      status: 'active',
-      joinedDate: 'Aug 20, 2026',
-      lastActive: '6 min ago',
-    },
-    {
-      id: '10288',
-      name: 'Daniel A.',
-      username: '@bingo_player',
-      phone: '+251933445566',
-      playableBalance: 3100,
-      withdrawableBalance: 1900,
-      totalDeposited: 18000,
-      totalWithdrawn: 14000,
-      totalWagered: 89000,
-      winCount: 74,
-      lossCount: 65,
-      status: 'active',
-      joinedDate: 'Jul 29, 2026',
-      lastActive: '9 min ago',
-    },
-    {
-      id: '10293',
-      name: 'Yosef B.',
-      username: '@player_931',
-      phone: '+251944556677',
-      playableBalance: 800,
-      withdrawableBalance: 400,
-      totalDeposited: 9500,
-      totalWithdrawn: 6800,
-      totalWagered: 32000,
-      winCount: 29,
-      lossCount: 31,
-      status: 'active',
-      joinedDate: 'Aug 02, 2026',
-      lastActive: '12 min ago',
-    },
-    {
-      id: '10299',
-      name: 'Kaleb S.',
-      username: '@kaleb_99',
-      phone: '+251922001122',
-      playableBalance: 0,
-      withdrawableBalance: 0,
-      totalDeposited: 300,
-      totalWithdrawn: 0,
-      totalWagered: 300,
-      winCount: 0,
-      lossCount: 3,
-      status: 'blocked',
-      joinedDate: 'Sep 01, 2026',
-      lastActive: '1 hour ago',
-    },
-  ]);
+  const [users, setUsers] = useState<UserItem[]>([]);
   const [userSearch, setUserSearch] = useState<string>('');
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
 
@@ -892,64 +698,77 @@ export const App: React.FC = () => {
               </div>
 
               {/* STATS */}
-              <div className="stats">
-                <div className="stat-card">
-                  <div className="stat-top">
-                    <span className="stat-label">Total Deposits</span>
-                    <div className="stat-icon">
-                      <svg viewBox="0 0 24 24">
-                        <path d="M12 3v18" />
-                        <path d="M17 7c0-2-2-4-5-4S7 5 7 7s2 3 5 4 5 2 5 4-2 4-5 4-5-2-5-4" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="stat-value">84,250 ETB</div>
-                  <div className="stat-change up">+12.8% this month</div>
-                </div>
+              {(() => {
+                const totalDep = transactions
+                  .filter((t) => t.category === 'deposit' && t.status === 'completed')
+                  .reduce((sum, t) => sum + t.amount, 0);
+                const totalWd = transactions
+                  .filter((t) => t.category === 'withdrawal' && t.status === 'completed')
+                  .reduce((sum, t) => sum + t.amount, 0);
+                const profit = totalDep - totalWd;
+                const activeCount = users.filter((u) => u.status === 'active').length;
 
-                <div className="stat-card">
-                  <div className="stat-top">
-                    <span className="stat-label">Withdrawals</span>
-                    <div className="stat-icon">
-                      <svg viewBox="0 0 24 24">
-                        <path d="M12 21V3" />
-                        <path d="m6 9 6-6 6 6" />
-                      </svg>
+                return (
+                  <div className="stats">
+                    <div className="stat-card">
+                      <div className="stat-top">
+                        <span className="stat-label">Total Deposits</span>
+                        <div className="stat-icon">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M12 3v18" />
+                            <path d="M17 7c0-2-2-4-5-4S7 5 7 7s2 3 5 4 5 2 5 4-2 4-5 4-5-2-5-4" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="stat-value">{totalDep.toLocaleString()} ETB</div>
+                      <div className="stat-change up">{transactions.filter((t) => t.category === 'deposit').length} total deposits</div>
                     </div>
-                  </div>
-                  <div className="stat-value">61,430 ETB</div>
-                  <div className="stat-change down">-4.6% this month</div>
-                </div>
 
-                <div className="stat-card">
-                  <div className="stat-top">
-                    <span className="stat-label">System Profit</span>
-                    <div className="stat-icon">
-                      <svg viewBox="0 0 24 24">
-                        <path d="m4 19 6-6 4 4 6-8" />
-                        <path d="M15 9h5v5" />
-                      </svg>
+                    <div className="stat-card">
+                      <div className="stat-top">
+                        <span className="stat-label">Withdrawals</span>
+                        <div className="stat-icon">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M12 21V3" />
+                            <path d="m6 9 6-6 6 6" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="stat-value">{totalWd.toLocaleString()} ETB</div>
+                      <div className="stat-change down">{transactions.filter((t) => t.category === 'withdrawal').length} total withdrawals</div>
                     </div>
-                  </div>
-                  <div className="stat-value">+22,820 ETB</div>
-                  <div className="stat-change up">Successful transactions</div>
-                </div>
 
-                <div className="stat-card">
-                  <div className="stat-top">
-                    <span className="stat-label">Active Players</span>
-                    <div className="stat-icon">
-                      <svg viewBox="0 0 24 24">
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2" />
-                        <path d="M16 3.1a4 4 0 0 1 0 7.8" />
-                      </svg>
+                    <div className="stat-card">
+                      <div className="stat-top">
+                        <span className="stat-label">System Profit</span>
+                        <div className="stat-icon">
+                          <svg viewBox="0 0 24 24">
+                            <path d="m4 19 6-6 4 4 6-8" />
+                            <path d="M15 9h5v5" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="stat-value">{profit >= 0 ? `+${profit.toLocaleString()}` : profit.toLocaleString()} ETB</div>
+                      <div className="stat-change up">Net balance</div>
+                    </div>
+
+                    <div className="stat-card">
+                      <div className="stat-top">
+                        <span className="stat-label">Active Players</span>
+                        <div className="stat-icon">
+                          <svg viewBox="0 0 24 24">
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2" />
+                            <path d="M16 3.1a4 4 0 0 1 0 7.8" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="stat-value">{activeCount.toLocaleString()}</div>
+                      <div className="stat-change up">{users.length} registered</div>
                     </div>
                   </div>
-                  <div className="stat-value">1,284</div>
-                  <div className="stat-change up">+86 today</div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* DASHBOARD CONTENT */}
               <div className="dashboard-grid">
