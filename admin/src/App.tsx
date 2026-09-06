@@ -1,21 +1,32 @@
 import React, { useState, useEffect } from 'react';
+import './styles/Admin.css';
 import { adminApi } from './services/api';
+
+type NavSection =
+  | 'dashboard'
+  | 'users'
+  | 'tasks'
+  | 'promocodes'
+  | 'deposits'
+  | 'withdrawals'
+  | 'broadcast'
+  | 'settings'
+  | 'maintenance';
 
 interface TransactionItem {
   id: string;
   userId: string;
   playerName: string;
   username: string;
-  phone?: string;
-  title: string;
-  meta: string;
+  phone: string;
   amount: number;
   currency: string;
-  type: 'positive' | 'negative';
-  category?: 'deposit' | 'withdrawal' | 'game' | 'bonus';
+  category: 'deposit' | 'withdrawal';
   method: string;
-  status: 'pending' | 'approved' | 'rejected';
-  timestamp: string;
+  smsRef?: string;
+  accountNumber?: string;
+  status: 'pending' | 'completed' | 'rejected';
+  time: string;
 }
 
 interface UserItem {
@@ -23,55 +34,46 @@ interface UserItem {
   name: string;
   username: string;
   phone: string;
-  totalBalance: number;
   playableBalance: number;
   withdrawableBalance: number;
-  totalDeposited?: number;
-  totalWithdrawn?: number;
-  totalWagered?: number;
-  winCount?: number;
-  lossCount?: number;
+  totalDeposited: number;
+  totalWithdrawn: number;
+  totalWagered: number;
+  winCount: number;
+  lossCount: number;
   status: 'active' | 'blocked';
   joinedDate: string;
   lastActive: string;
 }
 
-interface LiveGameItem {
-  id: string;
-  gameNumber: string;
-  gameType: string;
-  playersCount: number;
-  totalStakes: number;
-  prizePool: number;
-  status: string;
-  timeRemaining?: string;
-}
-
-interface ActivityItem {
-  id: string;
-  type: 'user' | 'deposit_approved' | 'withdraw_approved' | 'deposit_rejected' | 'withdraw_rejected' | 'game_completed';
-  title: string;
-  detail: string;
-  time: string;
-}
-
-interface NotificationItem {
-  id: string;
-  type: 'payment' | 'system' | 'alert';
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-}
-
-interface PromotionItem {
+interface TaskItem {
   id: string;
   title: string;
-  type: 'Deposit Bonus' | 'Free Spins' | 'Task' | 'Promo Code';
+  desc: string;
   reward: string;
   target: string;
-  status: 'active' | 'expired';
-  claimedCount: number;
+  status: 'active' | 'disabled';
+  completions: number;
+}
+
+interface PromoItem {
+  id: string;
+  code: string;
+  reward: string;
+  maxUses: number;
+  usedCount: number;
+  expiry: string;
+  status: 'active' | 'expired' | 'disabled';
+}
+
+interface BroadcastItem {
+  id: string;
+  title: string;
+  message: string;
+  target: string;
+  sentAt: string;
+  recipients: number;
+  status: 'delivered' | 'sending';
 }
 
 export const App: React.FC = () => {
@@ -80,107 +82,190 @@ export const App: React.FC = () => {
     return localStorage.getItem('gamezone_admin_auth') === 'true';
   });
   const [loginUser, setLoginUser] = useState<string>('admin');
-  const [loginPass, setLoginPass] = useState<string>('');
+  const [loginPass, setLoginPass] = useState<string>('password123');
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // ── Navigation ──
-  const [activeSection, setActiveSection] = useState<
-    'overview' | 'payments' | 'users' | 'games' | 'analytics' | 'promotions' | 'transactions' | 'notifications' | 'settings'
-  >('overview');
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
+  // ── Layout Navigation & Sidebar State ──
+  const [activeTab, setActiveTab] = useState<NavSection>('dashboard');
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('sidebarCollapsed') === 'true';
+  });
+  const [isMobileOpen, setIsMobileOpen] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // ── Stateful Data ──
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((prev) => (prev === msg ? null : prev));
+    }, 2800);
+  };
+
+  const toggleCollapse = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('sidebarCollapsed', String(next));
+      return next;
+    });
+  };
+
+  const handleNavClick = (tab: NavSection) => {
+    setActiveTab(tab);
+    if (window.innerWidth <= 900) {
+      setIsMobileOpen(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('gamezone_admin_auth');
+    setIsAuthenticated(false);
+  };
+
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (
+      (loginUser === 'admin' && loginPass === 'password123') ||
+      (loginUser === 'admin123' && loginPass === 'gamezone2026')
+    ) {
+      localStorage.setItem('gamezone_admin_auth', 'true');
+      setIsAuthenticated(true);
+      setLoginError(null);
+      showToast('Welcome back, Admin!');
+    } else {
+      setLoginError('Invalid administrator credentials.');
+    }
+  };
+
+  // ── Transactions & Cashier State ──
   const [transactions, setTransactions] = useState<TransactionItem[]>([
     {
-      id: 'DP-20841',
+      id: 'DP48291',
       userId: '10284',
       playerName: 'Abebe T.',
-      username: '@abebe_21',
+      username: '@player_284',
       phone: '+251911002233',
-      title: 'Deposit via Telebirr',
-      meta: 'SMS: 9A8B7C · 0911002233',
       amount: 500,
       currency: 'ETB',
-      type: 'positive',
       category: 'deposit',
       method: 'Telebirr',
+      smsRef: 'TB-998822441',
       status: 'pending',
-      timestamp: '09:18',
+      time: '2 min ago',
     },
     {
-      id: 'DP-20840',
-      userId: '102941',
+      id: 'DP48289',
+      userId: '10295',
       playerName: 'Mekdes K.',
-      username: '@mekdes7',
+      username: '@mekdes_bingo',
       phone: '+251922334455',
-      title: 'Deposit via Telebirr',
-      meta: 'SMS: 7X8Y9Z · 0922334455',
+      amount: 250,
+      currency: 'ETB',
+      category: 'deposit',
+      method: 'Telebirr',
+      smsRef: 'TB-334411990',
+      status: 'pending',
+      time: '6 min ago',
+    },
+    {
+      id: 'DP48288',
+      userId: '10288',
+      playerName: 'Daniel A.',
+      username: '@bingo_player',
+      phone: '+251933445566',
       amount: 1000,
       currency: 'ETB',
-      type: 'positive',
       category: 'deposit',
-      method: 'Telebirr',
-      status: 'approved',
-      timestamp: '09:12',
-    },
-    {
-      id: 'WD-10921',
-      userId: '102955',
-      playerName: 'Daniel A.',
-      username: '@dani_11',
-      phone: '+251933445566',
-      title: 'Withdrawal to CBE',
-      meta: 'Acc: 1000987654321',
-      amount: -1200,
-      currency: 'ETB',
-      type: 'negative',
-      category: 'withdrawal',
       method: 'CBE Birr',
+      smsRef: 'CBE-77112233',
       status: 'pending',
-      timestamp: '09:07',
+      time: '9 min ago',
     },
     {
-      id: 'DP-20838',
-      userId: '102999',
-      playerName: 'Hana M.',
-      username: '@hana22',
-      phone: '+251955667788',
-      title: 'Deposit via Telebirr',
-      meta: 'SMS: Invalid format',
+      id: 'WD17402',
+      userId: '10293',
+      playerName: 'Yosef B.',
+      username: '@player_931',
+      phone: '+251944556677',
+      accountNumber: '0944556677 (Telebirr)',
       amount: 300,
       currency: 'ETB',
-      type: 'positive',
-      category: 'deposit',
-      method: 'Telebirr',
-      status: 'rejected',
-      timestamp: '08:54',
-    },
-    {
-      id: 'WD-10918',
-      userId: '10284',
-      playerName: 'Abebe T.',
-      username: '@abebe_21',
-      phone: '+251911002233',
-      title: 'Withdrawal via Telebirr',
-      meta: 'Phone: 0911002233',
-      amount: -450,
-      currency: 'ETB',
-      type: 'negative',
       category: 'withdrawal',
       method: 'Telebirr',
-      status: 'approved',
-      timestamp: '08:30',
+      status: 'pending',
+      time: '5 min ago',
+    },
+    {
+      id: 'WD17396',
+      userId: '10282',
+      playerName: 'Helen G.',
+      username: '@player_482',
+      phone: '+251911889900',
+      accountNumber: '100049281920 (CBE)',
+      amount: 750,
+      currency: 'ETB',
+      category: 'withdrawal',
+      method: 'CBE Bank',
+      status: 'pending',
+      time: '14 min ago',
+    },
+    {
+      id: 'DP48270',
+      userId: '10201',
+      playerName: 'Ermias D.',
+      username: '@ermi_2026',
+      phone: '+251912345678',
+      amount: 500,
+      currency: 'ETB',
+      category: 'deposit',
+      method: 'Telebirr',
+      smsRef: 'TB-102938475',
+      status: 'completed',
+      time: '25 min ago',
+    },
+    {
+      id: 'WD17380',
+      userId: '10214',
+      playerName: 'Sara M.',
+      username: '@sara_win',
+      phone: '+251911998877',
+      accountNumber: '0911998877',
+      amount: 450,
+      currency: 'ETB',
+      category: 'withdrawal',
+      method: 'Telebirr',
+      status: 'completed',
+      time: '38 min ago',
+    },
+    {
+      id: 'DP48260',
+      userId: '10299',
+      playerName: 'Kaleb S.',
+      username: '@kaleb_99',
+      phone: '+251922001122',
+      amount: 300,
+      currency: 'ETB',
+      category: 'deposit',
+      method: 'Telebirr',
+      smsRef: 'INVALID_REF',
+      status: 'rejected',
+      time: '1 hour ago',
     },
   ]);
 
-  const [usersList, setUsersList] = useState<UserItem[]>([
+  // Modals & Selection
+  const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
+  const [rejectReason, setRejectReason] = useState<string>('Invalid SMS reference code');
+  const [depositFilter, setDepositFilter] = useState<'all' | 'pending' | 'completed' | 'rejected'>('all');
+  const [withdrawFilter, setWithdrawFilter] = useState<'all' | 'pending' | 'completed' | 'rejected'>('all');
+  const [txSearch, setTxSearch] = useState<string>('');
+
+  // ── Users State ──
+  const [users, setUsers] = useState<UserItem[]>([
     {
-      id: '102938',
-      name: 'Bini Eyoel',
-      username: '@bini',
-      phone: '+251911223344',
-      totalBalance: 2450,
-      playableBalance: 1800,
+      id: '10284',
+      name: 'Abebe T.',
+      username: '@player_284',
+      phone: '+251911002233',
+      playableBalance: 1450,
       withdrawableBalance: 650,
       totalDeposited: 12500,
       totalWithdrawn: 8400,
@@ -188,16 +273,15 @@ export const App: React.FC = () => {
       winCount: 42,
       lossCount: 38,
       status: 'active',
-      joinedDate: 'Sep 03',
+      joinedDate: 'Aug 14, 2026',
       lastActive: 'Just now',
     },
     {
-      id: '102941',
+      id: '10295',
       name: 'Mekdes K.',
-      username: '@mekdes7',
+      username: '@mekdes_bingo',
       phone: '+251922334455',
-      totalBalance: 820,
-      playableBalance: 500,
+      playableBalance: 520,
       withdrawableBalance: 320,
       totalDeposited: 4200,
       totalWithdrawn: 3100,
@@ -205,16 +289,15 @@ export const App: React.FC = () => {
       winCount: 18,
       lossCount: 22,
       status: 'active',
-      joinedDate: 'Sep 02',
-      lastActive: '12m ago',
+      joinedDate: 'Aug 20, 2026',
+      lastActive: '6 min ago',
     },
     {
-      id: '102955',
+      id: '10288',
       name: 'Daniel A.',
-      username: '@dani_11',
+      username: '@bingo_player',
       phone: '+251933445566',
-      totalBalance: 3100,
-      playableBalance: 1200,
+      playableBalance: 3100,
       withdrawableBalance: 1900,
       totalDeposited: 18000,
       totalWithdrawn: 14000,
@@ -222,230 +305,320 @@ export const App: React.FC = () => {
       winCount: 74,
       lossCount: 65,
       status: 'active',
-      joinedDate: 'Aug 29',
-      lastActive: '1h ago',
+      joinedDate: 'Jul 29, 2026',
+      lastActive: '9 min ago',
     },
     {
-      id: '102988',
-      name: 'Yosef T.',
-      username: '@yosef_99',
+      id: '10293',
+      name: 'Yosef B.',
+      username: '@player_931',
       phone: '+251944556677',
-      totalBalance: 4500,
-      playableBalance: 2000,
-      withdrawableBalance: 2500,
-      totalDeposited: 22000,
-      totalWithdrawn: 16500,
-      totalWagered: 114000,
-      winCount: 95,
-      lossCount: 88,
+      playableBalance: 800,
+      withdrawableBalance: 400,
+      totalDeposited: 9500,
+      totalWithdrawn: 6800,
+      totalWagered: 32000,
+      winCount: 29,
+      lossCount: 31,
+      status: 'active',
+      joinedDate: 'Aug 02, 2026',
+      lastActive: '12 min ago',
+    },
+    {
+      id: '10299',
+      name: 'Kaleb S.',
+      username: '@kaleb_99',
+      phone: '+251922001122',
+      playableBalance: 0,
+      withdrawableBalance: 0,
+      totalDeposited: 300,
+      totalWithdrawn: 0,
+      totalWagered: 300,
+      winCount: 0,
+      lossCount: 3,
       status: 'blocked',
-      joinedDate: 'Aug 25',
-      lastActive: '3h ago',
+      joinedDate: 'Sep 01, 2026',
+      lastActive: '1 hour ago',
     },
   ]);
-
-  const [liveGames] = useState<LiveGameItem[]>([
-    {
-      id: 'g-1',
-      gameNumber: '#BINGO-108',
-      gameType: 'Bingo Live (10 ETB)',
-      playersCount: 28,
-      totalStakes: 280,
-      prizePool: 252,
-      status: 'Drawing Ball 24/75',
-      timeRemaining: '01:14',
-    },
-    {
-      id: 'g-2',
-      gameNumber: '#KENO-402',
-      gameType: 'Keno Turbo (Fast)',
-      playersCount: 14,
-      totalStakes: 420,
-      prizePool: 390,
-      status: 'Counting Down',
-      timeRemaining: '00:18',
-    },
-    {
-      id: 'g-3',
-      gameNumber: '#BINGO-109',
-      gameType: 'VIP Bingo (50 ETB)',
-      playersCount: 8,
-      totalStakes: 400,
-      prizePool: 360,
-      status: 'Waiting for Players',
-      timeRemaining: '00:45',
-    },
-  ]);
-
-  const [recentActivities] = useState<ActivityItem[]>([
-    { id: '1', type: 'deposit_approved', title: 'Deposit approved', detail: 'Player #10284 · 500 ETB · Telebirr', time: '2m ago' },
-    { id: '2', type: 'withdraw_approved', title: 'Withdrawal approved', detail: 'Player #102941 · 450 ETB · Telebirr', time: '8m ago' },
-    { id: '3', type: 'user', title: 'New user registered', detail: '@abebe_21 joined via Telegram bot', time: '14m ago' },
-    { id: '4', type: 'game_completed', title: 'Game completed', detail: '#BINGO-107 won by @mekdes7 · 630 ETB', time: '21m ago' },
-    { id: '5', type: 'deposit_rejected', title: 'Deposit rejected', detail: 'Player #102999 · 300 ETB (Invalid SMS)', time: '35m ago' },
-  ]);
-
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    { id: 'n-1', type: 'payment', title: 'New Deposit Request', message: 'Player #10284 submitted Telebirr deposit of 500 ETB', time: 'Just now', read: false },
-    { id: 'n-2', type: 'payment', title: 'New Withdrawal Request', message: 'Player #102955 requested 1,200 ETB to CBE Bank', time: '7m ago', read: false },
-    { id: 'n-3', type: 'alert', title: 'High Concurrent Players', message: 'Bingo Live server reached 247 concurrent players', time: '1h ago', read: false },
-  ]);
-
-  const [promotions, setPromotions] = useState<PromotionItem[]>([
-    { id: 'p-1', title: '100% First Deposit Match', type: 'Deposit Bonus', reward: '+100% Bonus up to 1,000 ETB', target: 'New Players', status: 'active', claimedCount: 1420 },
-    { id: 'p-2', title: 'Weekend Bingo Free Ticket', type: 'Free Spins', reward: '1 Free Cartela on 50 ETB Deposit', target: 'All Players', status: 'active', claimedCount: 820 },
-    { id: 'p-3', title: 'Telegram Channel Join Bonus', type: 'Task', reward: '15 ETB Free Playable Balance', target: 'Verified Users', status: 'active', claimedCount: 3410 },
-  ]);
-
-  // ── Modals & Filtering State ──
-  const [paymentTab, setPaymentTab] = useState<'all' | 'deposit' | 'withdrawal' | 'pending'>('all');
-  const [paymentSearch, setPaymentSearch] = useState<string>('');
-  const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
-  const [rejectReason, setRejectReason] = useState<string>('Invalid SMS reference / unverified');
-
-  const [usersSearch, setUsersSearch] = useState<string>('');
+  const [userSearch, setUserSearch] = useState<string>('');
+  const [userStatusFilter, setUserStatusFilter] = useState<'all' | 'active' | 'blocked'>('all');
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
 
-  const [analyticsPeriod, setAnalyticsPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  // ── Tasks State ──
+  const [tasks, setTasks] = useState<TaskItem[]>([
+    {
+      id: 't-1',
+      title: 'Daily Login Reward',
+      desc: 'Claim daily bonus by logging in consecutive days.',
+      reward: '+5 ETB Playable',
+      target: 'All Players',
+      status: 'active',
+      completions: 1284,
+    },
+    {
+      id: 't-2',
+      title: 'Join Telegram Channel',
+      desc: 'Subscribe to the official @GameZoneETH announcement channel.',
+      reward: '+15 ETB Playable',
+      target: 'New Players',
+      status: 'active',
+      completions: 3410,
+    },
+    {
+      id: 't-3',
+      title: 'Play 5 Bingo Rounds',
+      desc: 'Participate in any 5 Live Bingo or Turbo games.',
+      reward: '+20 ETB Bonus',
+      target: 'Active Players',
+      status: 'active',
+      completions: 890,
+    },
+    {
+      id: 't-4',
+      title: 'First Deposit Match',
+      desc: 'Deposit 100 ETB or more for an instant 50 ETB ticket credit.',
+      reward: '+50 ETB Cartela',
+      target: 'First-time Depositors',
+      status: 'active',
+      completions: 642,
+    },
+  ]);
+  const [showNewTaskModal, setShowNewTaskModal] = useState<boolean>(false);
+  const [newTaskTitle, setNewTaskTitle] = useState<string>('');
+  const [newTaskDesc, setNewTaskDesc] = useState<string>('');
+  const [newTaskReward, setNewTaskReward] = useState<string>('');
+  const [newTaskTarget, setNewTaskTarget] = useState<string>('All Players');
+
+  // ── Promo Codes State ──
+  const [promos, setPromos] = useState<PromoItem[]>([
+    {
+      id: 'p-1',
+      code: 'WELCOME100',
+      reward: '+100 ETB Bonus on 200 ETB Deposit',
+      maxUses: 1000,
+      usedCount: 742,
+      expiry: '30 Sep 2026',
+      status: 'active',
+    },
+    {
+      id: 'p-2',
+      code: 'BINGO2026',
+      reward: '2 Free VIP Cartelas',
+      maxUses: 500,
+      usedCount: 318,
+      expiry: '15 Sep 2026',
+      status: 'active',
+    },
+    {
+      id: 'p-3',
+      code: 'TELEGRAM15',
+      reward: '+15 ETB Free Playable',
+      maxUses: 2000,
+      usedCount: 1980,
+      expiry: '31 Dec 2026',
+      status: 'active',
+    },
+    {
+      id: 'p-4',
+      code: 'EXPIRED50',
+      reward: '+50 ETB Bonus',
+      maxUses: 200,
+      usedCount: 200,
+      expiry: '01 Sep 2026',
+      status: 'expired',
+    },
+  ]);
   const [showNewPromoModal, setShowNewPromoModal] = useState<boolean>(false);
+  const [newPromoCode, setNewPromoCode] = useState<string>('');
+  const [newPromoReward, setNewPromoReward] = useState<string>('');
+  const [newPromoUses, setNewPromoUses] = useState<number>(500);
+  const [newPromoExpiry, setNewPromoExpiry] = useState<string>('30 Sep 2026');
+
+  // ── Broadcast State ──
+  const [broadcasts, setBroadcasts] = useState<BroadcastItem[]>([
+    {
+      id: 'bc-1',
+      title: '🎉 Weekend Mega Bingo Jackpot Active!',
+      message: 'Join the 50,000 ETB Mega Pool in Bingo Live Room #108. Double rewards for the top 5 cartelas!',
+      target: 'All Players',
+      sentAt: 'Yesterday, 18:30',
+      recipients: 1284,
+      status: 'delivered',
+    },
+    {
+      id: 'bc-2',
+      title: '⚡ Instant Telebirr Deposits Online',
+      message: 'Fast automated deposit verification is active. Deposits take under 30 seconds to credit.',
+      target: 'All Players',
+      sentAt: '03 Sep 2026',
+      recipients: 1190,
+      status: 'delivered',
+    },
+  ]);
+  const [bcTitle, setBcTitle] = useState<string>('');
+  const [bcMessage, setBcMessage] = useState<string>('');
+  const [bcTarget, setBcTarget] = useState<string>('All Players');
 
   // ── Settings State ──
   const [telebirrPhone, setTelebirrPhone] = useState<string>('0911002233');
   const [cbeAccount, setCbeAccount] = useState<string>('1000123456789');
+  const [cbeAccountName, setCbeAccountName] = useState<string>('GameZone Gaming Systems');
   const [minDeposit, setMinDeposit] = useState<number>(10);
   const [minWithdraw, setMinWithdraw] = useState<number>(50);
+  const [bingoHouseFee, setBingoHouseFee] = useState<number>(10);
 
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // ── Maintenance State ──
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState<boolean>(false);
+  const [maintenanceBanner, setMaintenanceBanner] = useState<string>(
+    'System undergoing scheduled server optimization. We will be back online shortly!'
+  );
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage((prev) => (prev === msg ? null : prev)), 2600);
-  };
+  // ── Chart Period State ──
+  const [chartPeriod, setChartPeriod] = useState<string>('Last 7 days');
 
-  // Live data sync
+  // Load live data from backend if connected
   useEffect(() => {
     if (!isAuthenticated) return;
     adminApi.getTransactions().then((res) => {
-      if (res?.success && Array.isArray(res.data)) setTransactions(res.data);
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        setTransactions(res.data);
+      }
     });
     adminApi.getUsers().then((res) => {
-      if (res?.success && Array.isArray(res.data)) setUsersList(res.data);
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        setUsers(res.data);
+      }
     });
   }, [isAuthenticated]);
 
-  // ── Authentication Handlers ──
-  const handleLogin = (e: React.FormEvent) => {
+  // Pending counts
+  const pendingDepositsCount = transactions.filter((t) => t.category === 'deposit' && t.status === 'pending').length;
+  const pendingWithdrawalsCount = transactions.filter((t) => t.category === 'withdrawal' && t.status === 'pending').length;
+
+  // ── Handlers for Transactions ──
+  const handleApproveTx = (tx: TransactionItem) => {
+    setTransactions((prev) =>
+      prev.map((t) => (t.id === tx.id ? { ...t, status: 'completed' } : t))
+    );
+    setSelectedTx(null);
+    showToast(
+      tx.category === 'deposit'
+        ? `Deposit #${tx.id} approved & +${tx.amount} ETB credited!`
+        : `Withdrawal #${tx.id} approved & marked as sent!`
+    );
+  };
+
+  const handleRejectTx = (tx: TransactionItem) => {
+    setTransactions((prev) =>
+      prev.map((t) => (t.id === tx.id ? { ...t, status: 'rejected' } : t))
+    );
+    setSelectedTx(null);
+    showToast(`Transaction #${tx.id} rejected (${rejectReason}).`);
+  };
+
+  const handleToggleUserStatus = (userId: string) => {
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === userId) {
+          const nextStatus = u.status === 'active' ? 'blocked' : 'active';
+          showToast(`Player ${u.username} is now ${nextStatus.toUpperCase()}`);
+          return { ...u, status: nextStatus };
+        }
+        return u;
+      })
+    );
+    if (selectedUser && selectedUser.id === userId) {
+      setSelectedUser((prev) =>
+        prev ? { ...prev, status: prev.status === 'active' ? 'blocked' : 'active' } : null
+      );
+    }
+  };
+
+  const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
-    if (
-      loginUser === 'admin' &&
-      (loginPass === 'password123' || loginPass === 'admin123' || loginPass === 'gamezone2026')
-    ) {
-      setIsAuthenticated(true);
-      localStorage.setItem('gamezone_admin_auth', 'true');
-      setLoginError(null);
-      showToast('Welcome to Bingo X Admin Panel');
-    } else {
-      setLoginError('Invalid administrator credentials.');
-    }
+    if (!newTaskTitle.trim() || !newTaskReward.trim()) return;
+    const newTask: TaskItem = {
+      id: `t-${Date.now()}`,
+      title: newTaskTitle.trim(),
+      desc: newTaskDesc.trim() || 'Complete the task to earn reward balance.',
+      reward: newTaskReward.trim(),
+      target: newTaskTarget,
+      status: 'active',
+      completions: 0,
+    };
+    setTasks([newTask, ...tasks]);
+    setShowNewTaskModal(false);
+    setNewTaskTitle('');
+    setNewTaskDesc('');
+    setNewTaskReward('');
+    showToast(`Task "${newTask.title}" created successfully!`);
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('gamezone_admin_auth');
-    setLoginPass('');
+  const handleCreatePromo = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPromoCode.trim() || !newPromoReward.trim()) return;
+    const newPromo: PromoItem = {
+      id: `p-${Date.now()}`,
+      code: newPromoCode.trim().toUpperCase(),
+      reward: newPromoReward.trim(),
+      maxUses: newPromoUses,
+      usedCount: 0,
+      expiry: newPromoExpiry,
+      status: 'active',
+    };
+    setPromos([newPromo, ...promos]);
+    setShowNewPromoModal(false);
+    setNewPromoCode('');
+    setNewPromoReward('');
+    showToast(`Promo Code "${newPromo.code}" generated!`);
   };
 
-  // ── Payment Actions ──
-  const handleApproveTx = (id: string) => {
-    const tx = transactions.find((t) => t.id === id);
-    setTransactions((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: 'approved' as const } : t))
-    );
-    adminApi.approveTransaction(id, tx ? Math.abs(tx.amount) : 0);
-    showToast(`Payment #${id} approved successfully`);
-    if (selectedTx?.id === id) setSelectedTx(null);
+  const handleSendBroadcast = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bcTitle.trim() || !bcMessage.trim()) return;
+    const newBroadcast: BroadcastItem = {
+      id: `bc-${Date.now()}`,
+      title: bcTitle.trim(),
+      message: bcMessage.trim(),
+      target: bcTarget,
+      sentAt: 'Just now',
+      recipients: bcTarget === 'All Players' ? 1284 : 450,
+      status: 'delivered',
+    };
+    setBroadcasts([newBroadcast, ...broadcasts]);
+    setBcTitle('');
+    setBcMessage('');
+    showToast(`Broadcast sent to ${newBroadcast.recipients} players!`);
   };
 
-  const handleRejectTx = (id: string) => {
-    setTransactions((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: 'rejected' as const } : t))
-    );
-    adminApi.rejectTransaction(id, rejectReason);
-    showToast(`Payment #${id} rejected`);
-    if (selectedTx?.id === id) setSelectedTx(null);
+  const handleSaveSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    showToast('Platform settings saved and applied.');
   };
 
-  // ── User Actions (Block / Unblock) ──
-  const handleToggleBlockUser = (userId: string) => {
-    const targetUser = usersList.find((u) => u.id === userId);
-    if (!targetUser) return;
-    const newStatus = targetUser.status === 'active' ? 'blocked' : 'active';
-
-    setUsersList((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, status: newStatus } : u))
-    );
-    adminApi.updateUser(userId, { status: newStatus });
-    showToast(`Player #${userId} ${newStatus === 'blocked' ? 'Blocked' : 'Unblocked'}`);
-    if (selectedUser?.id === userId) {
-      setSelectedUser((prev) => (prev ? { ...prev, status: newStatus } : null));
-    }
-  };
-
-  // Filtered lists
-  const pendingDeposits = transactions.filter((t) => t.type === 'positive' && t.status === 'pending');
-  const pendingWithdrawals = transactions.filter((t) => t.type === 'negative' && t.status === 'pending');
-  const unreadNotifCount = notifications.filter((n) => !n.read).length;
-
-  const filteredPayments = transactions.filter((t) => {
-    if (paymentTab === 'deposit' && t.type !== 'positive') return false;
-    if (paymentTab === 'withdrawal' && t.type !== 'negative') return false;
-    if (paymentTab === 'pending' && t.status !== 'pending') return false;
-    if (paymentSearch) {
-      const q = paymentSearch.toLowerCase();
-      return (
-        t.id.toLowerCase().includes(q) ||
-        t.playerName.toLowerCase().includes(q) ||
-        t.username.toLowerCase().includes(q) ||
-        t.meta.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
-
-  const filteredUsers = usersList.filter((u) => {
-    if (usersSearch) {
-      const q = usersSearch.toLowerCase();
-      return (
-        u.id.includes(q) ||
-        u.name.toLowerCase().includes(q) ||
-        u.username.toLowerCase().includes(q) ||
-        u.phone.includes(q)
-      );
-    }
-    return true;
-  });
-
-  // Navigation switch helper (closes drawer on mobile)
-  const navigateTo = (section: typeof activeSection) => {
-    setActiveSection(section);
-    setMobileDrawerOpen(false);
-  };
-
-  // ── LOGIN SCREEN ──
+  // ── Render Login Screen if not authenticated ──
   if (!isAuthenticated) {
     return (
-      <div className="admin-login-overlay">
-        <div className="admin-login-card">
-          <div className="admin-login-brand">
-            ✦ Bingo <span>X</span>
+      <div className="login-wrap">
+        <div className="login-card">
+          <div className="login-brand">
+            <div className="brand-mark">
+              <svg viewBox="0 0 24 24">
+                <rect x="4" y="4" width="16" height="16" rx="4" />
+                <path d="M8 12h8M12 8v8" />
+              </svg>
+            </div>
+            <h2>GameZone Admin</h2>
+            <p>Operations & Platform Management</p>
           </div>
-          <div className="admin-login-badge">Admin Operations Center</div>
 
-          <form onSubmit={handleLogin}>
-            <div className="admin-input-group">
-              <label>Administrator Username</label>
+          <form onSubmit={handleLoginSubmit}>
+            <div className="form-group">
+              <label className="form-label">Username</label>
               <input
                 type="text"
+                className="form-input"
                 value={loginUser}
                 onChange={(e) => setLoginUser(e.target.value)}
                 placeholder="admin"
@@ -453,970 +626,1499 @@ export const App: React.FC = () => {
               />
             </div>
 
-            <div className="admin-input-group">
-              <label>Password</label>
+            <div className="form-group">
+              <label className="form-label">Password</label>
               <input
                 type="password"
+                className="form-input"
                 value={loginPass}
                 onChange={(e) => setLoginPass(e.target.value)}
-                placeholder="password123"
+                placeholder="••••••••"
                 required
               />
             </div>
 
             {loginError && (
-              <div style={{ color: '#fb7185', fontSize: '11px', marginBottom: '14px', textAlign: 'left' }}>
-                ⚠️ {loginError}
+              <div style={{ color: 'var(--red)', fontSize: '11px', marginBottom: '12px', fontWeight: 600 }}>
+                {loginError}
               </div>
             )}
 
-            <button type="submit" className="admin-login-btn">
-              Access Admin Panel →
+            <button type="submit" className="login-btn">
+              Sign In to Admin Portal
             </button>
           </form>
+
+          <div className="login-hint">
+            <strong>Default Credentials:</strong> <code>admin</code> / <code>password123</code>
+          </div>
         </div>
       </div>
     );
   }
 
+  // ── Main Layout ──
   return (
-    <div className="admin-root">
-      {/* ── Sidebar (Desktop Fixed / Mobile Drawer) ── */}
-      <aside className={`admin-sidebar ${mobileDrawerOpen ? 'open' : ''}`}>
-        <div className="admin-sidebar-header">
-          <div className="admin-brand">
-            ✦ Bingo <span>X</span>
-            <span className="admin-brand-tag">ADMIN</span>
+    <>
+      {/* SIDEBAR */}
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`} id="sidebar">
+        <div className="brand">
+          <div className="brand-mark">
+            <svg viewBox="0 0 24 24">
+              <rect x="4" y="4" width="16" height="16" rx="4" />
+              <path d="M8 12h8M12 8v8" />
+            </svg>
           </div>
-          <button
-            className="admin-drawer-close"
-            onClick={() => setMobileDrawerOpen(false)}
-            aria-label="Close menu"
-          >
-            ✕
-          </button>
+
+          <span className="brand-name">GameZone</span>
+          <small>ADMIN</small>
         </div>
 
-        {/* Category 1: MAIN */}
-        <div className="admin-nav-group">
-          <div className="admin-nav-label">MAIN</div>
-          <button
-            className={`admin-nav-btn ${activeSection === 'overview' ? 'active' : ''}`}
-            onClick={() => navigateTo('overview')}
-          >
-            <span className="admin-nav-icon">🏠</span> Overview
-          </button>
-          <button
-            className={`admin-nav-btn ${activeSection === 'payments' ? 'active' : ''}`}
-            onClick={() => navigateTo('payments')}
-          >
-            <span className="admin-nav-icon">💳</span> Payments
-            {pendingDeposits.length + pendingWithdrawals.length > 0 && (
-              <span className="admin-nav-badge">
-                {pendingDeposits.length + pendingWithdrawals.length}
-              </span>
-            )}
-          </button>
-          <button
-            className={`admin-nav-btn ${activeSection === 'users' ? 'active' : ''}`}
-            onClick={() => navigateTo('users')}
-          >
-            <span className="admin-nav-icon">👥</span> Users
-          </button>
-          <button
-            className={`admin-nav-btn ${activeSection === 'games' ? 'active' : ''}`}
-            onClick={() => navigateTo('games')}
-          >
-            <span className="admin-nav-icon">🎮</span> Games
-          </button>
-        </div>
+        <div className="sidebar-scroll">
+          {/* OVERVIEW */}
+          <div className="section">
+            <div className="section-title">OVERVIEW</div>
 
-        {/* Category 2: MANAGEMENT */}
-        <div className="admin-nav-group">
-          <div className="admin-nav-label">MANAGEMENT</div>
-          <button
-            className={`admin-nav-btn ${activeSection === 'analytics' ? 'active' : ''}`}
-            onClick={() => navigateTo('analytics')}
-          >
-            <span className="admin-nav-icon">📊</span> Analytics
-          </button>
-          <button
-            className={`admin-nav-btn ${activeSection === 'promotions' ? 'active' : ''}`}
-            onClick={() => navigateTo('promotions')}
-          >
-            <span className="admin-nav-icon">🎁</span> Promotions
-          </button>
-          <button
-            className={`admin-nav-btn ${activeSection === 'transactions' ? 'active' : ''}`}
-            onClick={() => navigateTo('transactions')}
-          >
-            <span className="admin-nav-icon">🧾</span> Transactions
-          </button>
-        </div>
-
-        {/* Category 3: SYSTEM */}
-        <div className="admin-nav-group">
-          <div className="admin-nav-label">SYSTEM</div>
-          <button
-            className={`admin-nav-btn ${activeSection === 'notifications' ? 'active' : ''}`}
-            onClick={() => navigateTo('notifications')}
-          >
-            <span className="admin-nav-icon">🔔</span> Notifications
-            {unreadNotifCount > 0 && (
-              <span className="admin-nav-badge danger">{unreadNotifCount}</span>
-            )}
-          </button>
-          <button
-            className={`admin-nav-btn ${activeSection === 'settings' ? 'active' : ''}`}
-            onClick={() => navigateTo('settings')}
-          >
-            <span className="admin-nav-icon">⚙️</span> Settings
-          </button>
-        </div>
-
-        {/* Sidebar Footer: Profile & Logout */}
-        <div className="admin-sidebar-footer">
-          <div className="admin-profile-pill">
-            <div className="admin-avatar">AD</div>
-            <div className="admin-profile-info">
-              <div className="admin-profile-name">Admin</div>
-              <div className="admin-profile-role">Owner</div>
-            </div>
+            <button
+              className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => handleNavClick('dashboard')}
+            >
+              <svg viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+              <span className="nav-text">Dashboard</span>
+            </button>
           </div>
-          <button className="admin-logout-btn" onClick={handleLogout}>
-            <span>🚪</span> Log out
+
+          {/* MANAGEMENT */}
+          <div className="section">
+            <div className="section-title">MANAGEMENT</div>
+
+            <button
+              className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
+              onClick={() => handleNavClick('users')}
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              <span className="nav-text">Users</span>
+            </button>
+
+            <button
+              className={`nav-item ${activeTab === 'tasks' ? 'active' : ''}`}
+              onClick={() => handleNavClick('tasks')}
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9" />
+                <path d="M16 2v6h6" />
+                <path d="M16 13H8M16 17H8M10 9H8" />
+              </svg>
+              <span className="nav-text">Tasks</span>
+            </button>
+
+            <button
+              className={`nav-item ${activeTab === 'promocodes' ? 'active' : ''}`}
+              onClick={() => handleNavClick('promocodes')}
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8" />
+                <path d="M2 7h20v5H2z" />
+                <path d="M12 7v14" />
+                <path d="M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7Z" />
+                <path d="M12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7Z" />
+              </svg>
+              <span className="nav-text">Promo Codes</span>
+            </button>
+          </div>
+
+          {/* PAYMENTS */}
+          <div className="section">
+            <div className="section-title">PAYMENTS</div>
+
+            <button
+              className={`nav-item ${activeTab === 'deposits' ? 'active' : ''}`}
+              onClick={() => handleNavClick('deposits')}
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M12 3v18" />
+                <path d="M17 7c0-2-2-4-5-4S7 5 7 7s2 3 5 4 5 2 5 4-2 4-5 4-5-2-5-4" />
+              </svg>
+              <span className="nav-text">Deposits</span>
+              {pendingDepositsCount > 0 && <span className="badge">{pendingDepositsCount}</span>}
+            </button>
+
+            <button
+              className={`nav-item ${activeTab === 'withdrawals' ? 'active' : ''}`}
+              onClick={() => handleNavClick('withdrawals')}
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M12 21V3" />
+                <path d="m6 9 6-6 6 6" />
+              </svg>
+              <span className="nav-text">Withdrawals</span>
+              {pendingWithdrawalsCount > 0 && <span className="badge">{pendingWithdrawalsCount}</span>}
+            </button>
+          </div>
+
+          {/* COMMUNICATION */}
+          <div className="section">
+            <div className="section-title">COMMUNICATION</div>
+
+            <button
+              className={`nav-item ${activeTab === 'broadcast' ? 'active' : ''}`}
+              onClick={() => handleNavClick('broadcast')}
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M21 11.5a8.38 8.38 0 0 1-9 8.5 9.4 9.4 0 0 1-4-.9L3 21l1.9-4.4A8.3 8.3 0 0 1 3 11.5 8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5Z" />
+              </svg>
+              <span className="nav-text">Broadcast</span>
+            </button>
+          </div>
+
+          {/* SYSTEM */}
+          <div className="section">
+            <div className="section-title">SYSTEM</div>
+
+            <button
+              className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
+              onClick={() => handleNavClick('settings')}
+            >
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06-1.4 1.4-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21h-2v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06-1.4-1.4.06-.06A1.65 1.65 0 0 0 8.6 15a1.65 1.65 0 0 0-1.51-1H7v-2h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06 1.4-1.4.06.06a1.65 1.65 0 0 0 1.82.33h.02A1.65 1.65 0 0 0 12.5 6.6V6h2v.6a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06 1.4 1.4-.06.06a1.65 1.65 0 0 0-.33 1.82v.02a1.65 1.65 0 0 0 1.51 1H20v2h-.6a1.65 1.65 0 0 0-1.51 1Z" />
+              </svg>
+              <span className="nav-text">Settings</span>
+            </button>
+
+            <button
+              className={`nav-item ${activeTab === 'maintenance' ? 'active' : ''}`}
+              onClick={() => handleNavClick('maintenance')}
+            >
+              <svg viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <path d="M12 8v4M12 16h.01" />
+              </svg>
+              <span className="nav-text">Maintenance</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="sidebar-bottom">
+          <button className="nav-item logout" onClick={handleLogout}>
+            <svg viewBox="0 0 24 24">
+              <path d="M10 17l5-5-5-5" />
+              <path d="M15 12H3" />
+              <path d="M21 19V5a2 2 0 0 0-2-2h-6" />
+            </svg>
+            <span className="nav-text">Sign Out</span>
           </button>
         </div>
       </aside>
 
-      {/* ── Main Operations Screen ── */}
-      <main className="admin-main">
-        {/* Top Header */}
-        <header className="admin-topbar">
-          <div className="admin-top-left">
-            <button
-              className="admin-menu-toggle"
-              onClick={() => setMobileDrawerOpen(true)}
-              aria-label="Open menu"
-            >
-              ☰
+      {/* OVERLAY */}
+      <div
+        className={`overlay ${isMobileOpen ? 'show' : ''}`}
+        id="overlay"
+        onClick={() => setIsMobileOpen(false)}
+      />
+
+      {/* MAIN CONTENT AREA */}
+      <main className="main">
+        {/* TOPBAR */}
+        <header className="topbar">
+          <div className="top-left">
+            <button className="menu-btn desktop-menu" id="collapseBtn" onClick={toggleCollapse} title="Toggle Sidebar">
+              <svg viewBox="0 0 24 24">
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
-            <div className="admin-page-title">
-              {activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
-            </div>
+
+            <button
+              className="menu-btn mobile-menu"
+              id="mobileBtn"
+              onClick={() => setIsMobileOpen(true)}
+              title="Open Navigation"
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+
+            <span className="top-title">Admin Panel</span>
           </div>
 
-          <div className="admin-top-right">
-            <div className="admin-status-strip">
-              <span className="admin-status-badge">
-                <i className="admin-dot" /> System Online
-              </span>
-              <span className="admin-status-badge">
-                <i className="admin-dot" /> Game Server Online
-              </span>
-              <span className="admin-status-badge">
-                <i className="admin-dot" /> Payment Gateway
-              </span>
+          <div className="top-right">
+            <div className="status">
+              <span className="status-dot"></span>
+              {isMaintenanceMode ? 'Maintenance Mode' : 'System Online'}
             </div>
 
-            <button
-              className="admin-notif-btn"
-              onClick={() => navigateTo('notifications')}
-              aria-label="Notifications"
-            >
-              🔔
-              {unreadNotifCount > 0 && (
-                <span className="admin-notif-count">{unreadNotifCount}</span>
-              )}
-            </button>
-
-            <div className="admin-avatar" style={{ cursor: 'pointer' }} onClick={() => navigateTo('settings')}>
-              AD
-            </div>
+            <div className="admin-avatar">A</div>
           </div>
         </header>
 
-        {/* Main Content Area */}
-        <div className="admin-content">
-          {/* ══════════════════════════════════════════════════
-              1. 🏠 OVERVIEW (Main Dashboard Snapshot)
-          ══════════════════════════════════════════════════ */}
-          {activeSection === 'overview' && (
-            <section>
-              {/* Platform Status Bar */}
-              <div className="admin-platform-status-bar">
-                <div className="admin-status-item">
-                  <i className="admin-dot" /> System Status: <strong>Online</strong>
-                </div>
-                <div className="admin-status-item">
-                  <i className="admin-dot" /> Game Server: <strong>Online (3 Rooms)</strong>
-                </div>
-                <div className="admin-status-item">
-                  <i className="admin-dot" /> Payment System: <strong>Online (Telebirr / CBE)</strong>
+        {/* VIEW ROUTING */}
+        <section className="content">
+          {/* =========================================
+              VIEW 1: DASHBOARD
+             ========================================= */}
+          {activeTab === 'dashboard' && (
+            <>
+              <div className="page-heading">
+                <div>
+                  <h1>Dashboard</h1>
+                  <p>06 September 2026</p>
                 </div>
               </div>
 
-              {/* 🚨 Payment Alerts (Immediate Action Area) */}
-              {(pendingDeposits.length > 0 || pendingWithdrawals.length > 0) && (
-                <div className="admin-alerts-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <strong style={{ color: '#fbbf24', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      ⚠️ Payment Alerts ({pendingDeposits.length + pendingWithdrawals.length} Pending Actions)
-                    </strong>
-                    <button className="admin-btn" style={{ padding: '4px 8px', fontSize: '10.5px' }} onClick={() => navigateTo('payments')}>
-                      View Cashier →
-                    </button>
+              {/* STATS */}
+              <div className="stats">
+                <div className="stat-card">
+                  <div className="stat-top">
+                    <span className="stat-label">Total Deposits</span>
+                    <div className="stat-icon">
+                      <svg viewBox="0 0 24 24">
+                        <path d="M12 3v18" />
+                        <path d="M17 7c0-2-2-4-5-4S7 5 7 7s2 3 5 4 5 2 5 4-2 4-5 4-5-2-5-4" />
+                      </svg>
+                    </div>
                   </div>
+                  <div className="stat-value">84,250 ETB</div>
+                  <div className="stat-change up">+12.8% this month</div>
+                </div>
 
-                  {pendingDeposits.slice(0, 2).map((tx) => (
-                    <div key={tx.id} className="admin-alert-row">
+                <div className="stat-card">
+                  <div className="stat-top">
+                    <span className="stat-label">Withdrawals</span>
+                    <div className="stat-icon">
+                      <svg viewBox="0 0 24 24">
+                        <path d="M12 21V3" />
+                        <path d="m6 9 6-6 6 6" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="stat-value">61,430 ETB</div>
+                  <div className="stat-change down">-4.6% this month</div>
+                </div>
+
+                <div className="stat-card">
+                  <div className="stat-top">
+                    <span className="stat-label">System Profit</span>
+                    <div className="stat-icon">
+                      <svg viewBox="0 0 24 24">
+                        <path d="m4 19 6-6 4 4 6-8" />
+                        <path d="M15 9h5v5" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="stat-value">+22,820 ETB</div>
+                  <div className="stat-change up">Successful transactions</div>
+                </div>
+
+                <div className="stat-card">
+                  <div className="stat-top">
+                    <span className="stat-label">Active Players</span>
+                    <div className="stat-icon">
+                      <svg viewBox="0 0 24 24">
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2" />
+                        <path d="M16 3.1a4 4 0 0 1 0 7.8" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="stat-value">1,284</div>
+                  <div className="stat-change up">+86 today</div>
+                </div>
+              </div>
+
+              {/* GRID */}
+              <div className="dashboard-grid">
+                {/* FINANCIAL ACTIVITY */}
+                <div>
+                  <div className="panel">
+                    <div className="panel-header">
                       <div>
-                        <strong style={{ fontSize: '12px' }}>💰 New Deposit Request: {tx.amount} ETB</strong>
-                        <div style={{ fontSize: '11px', color: '#cbd5e1' }}>
-                          Player: {tx.playerName} ({tx.username}) · {tx.method} · {tx.meta}
+                        <div className="panel-title">Financial Activity</div>
+                        <div className="panel-sub">Deposits vs withdrawals</div>
+                      </div>
+
+                      <select
+                        className="select"
+                        value={chartPeriod}
+                        onChange={(e) => setChartPeriod(e.target.value)}
+                      >
+                        <option>Last 7 days</option>
+                        <option>Last 30 days</option>
+                        <option>Last 90 days</option>
+                      </select>
+                    </div>
+
+                    <div className="chart-box">
+                      <div className="chart">
+                        <div className="chart-grid">
+                          <span className="chart-line"></span>
+                          <span className="chart-line"></span>
+                          <span className="chart-line"></span>
+                          <span className="chart-line"></span>
+                          <span className="chart-line"></span>
+                        </div>
+
+                        <svg className="chart-svg" viewBox="0 0 700 210" preserveAspectRatio="none">
+                          <defs>
+                            <linearGradient id="area1" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0" stopColor="#22d3ee" stopOpacity=".16" />
+                              <stop offset="1" stopColor="#22d3ee" stopOpacity="0" />
+                            </linearGradient>
+                          </defs>
+
+                          <path
+                            d="M0 145
+                               C35 130 55 142 90 118
+                               S145 90 180 112
+                               S225 150 260 105
+                               S320 80 350 92
+                               S405 65 440 78
+                               S490 118 525 82
+                               S570 45 610 67
+                               S665 40 700 51
+                               L700 210 L0 210 Z"
+                            fill="url(#area1)"
+                          />
+
+                          <path
+                            d="M0 145
+                               C35 130 55 142 90 118
+                               S145 90 180 112
+                               S225 150 260 105
+                               S320 80 350 92
+                               S405 65 440 78
+                               S490 118 525 82
+                               S570 45 610 67
+                               S665 40 700 51"
+                            fill="none"
+                            stroke="#22d3ee"
+                            strokeWidth="3"
+                          />
+
+                          <path
+                            d="M0 170
+                               C45 160 60 168 100 150
+                               S150 130 185 143
+                               S235 175 270 140
+                               S320 120 360 130
+                               S410 105 450 120
+                               S500 150 535 128
+                               S585 100 620 115
+                               S665 85 700 102"
+                            fill="none"
+                            stroke="#6366f1"
+                            strokeWidth="3"
+                          />
+                        </svg>
+
+                        <div className="chart-labels">
+                          <span>Mon</span>
+                          <span>Tue</span>
+                          <span>Wed</span>
+                          <span>Thu</span>
+                          <span>Fri</span>
+                          <span>Sat</span>
+                          <span>Sun</span>
                         </div>
                       </div>
-                      <button className="admin-btn review" onClick={() => setSelectedTx(tx)}>
-                        Review
-                      </button>
-                    </div>
-                  ))}
 
-                  {pendingWithdrawals.slice(0, 2).map((tx) => (
-                    <div key={tx.id} className="admin-alert-row">
-                      <div>
-                        <strong style={{ fontSize: '12px', color: '#fb7185' }}>💸 New Withdrawal Request: {Math.abs(tx.amount)} ETB</strong>
-                        <div style={{ fontSize: '11px', color: '#cbd5e1' }}>
-                          Player: {tx.playerName} ({tx.username}) · {tx.method} · {tx.meta}
+                      <div className="chart-legend">
+                        <div className="legend">
+                          <span className="legend-dot deposit-dot"></span>
+                          Deposits
+                        </div>
+
+                        <div className="legend">
+                          <span className="legend-dot withdraw-dot"></span>
+                          Withdrawals
                         </div>
                       </div>
-                      <button className="admin-btn review" onClick={() => setSelectedTx(tx)}>
-                        Review
-                      </button>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Key Statistics Grids */}
-              {/* Users */}
-              <div className="admin-section-title">👥 Users Statistics</div>
-              <div className="admin-grid-3">
-                <div className="admin-card">
-                  <div className="admin-stat-top">Total Users</div>
-                  <div className="admin-stat-value">18,492</div>
-                  <div className="admin-stat-delta up">+4.8% this month</div>
-                </div>
-                <div className="admin-card">
-                  <div className="admin-stat-top">Active Users</div>
-                  <div className="admin-stat-value">6,820</div>
-                  <div className="admin-stat-delta up">Wagered in last 7 days</div>
-                </div>
-                <div className="admin-card">
-                  <div className="admin-stat-top">Online Players</div>
-                  <div className="admin-stat-value" style={{ color: '#34d399' }}>247</div>
-                  <div className="admin-stat-delta up">In live rooms right now</div>
-                </div>
-              </div>
-
-              {/* Games */}
-              <div className="admin-section-title">🎮 Games Statistics</div>
-              <div className="admin-grid-3">
-                <div className="admin-card">
-                  <div className="admin-stat-top">Games Played Today</div>
-                  <div className="admin-stat-value">1,277</div>
-                  <div className="admin-stat-delta up">Across all rooms</div>
-                </div>
-                <div className="admin-card">
-                  <div className="admin-stat-top">Live Games Running</div>
-                  <div className="admin-stat-value" style={{ color: '#22d3ee' }}>3 Active</div>
-                  <div className="admin-stat-delta">Bingo & Keno lobbies</div>
-                </div>
-                <div className="admin-card">
-                  <div className="admin-stat-top">Players Today</div>
-                  <div className="admin-stat-value">4,150</div>
-                  <div className="admin-stat-delta up">Unique participants</div>
-                </div>
-              </div>
-
-              {/* Payments & Revenue */}
-              <div className="admin-section-title">💳 Payments & Revenue</div>
-              <div className="admin-grid-4">
-                <div className="admin-card">
-                  <div className="admin-stat-top">Deposits Today</div>
-                  <div className="admin-stat-value" style={{ color: '#34d399' }}>86,420 ETB</div>
-                  <div className="admin-stat-delta up">119 transactions</div>
-                </div>
-                <div className="admin-card">
-                  <div className="admin-stat-top">Withdrawals Today</div>
-                  <div className="admin-stat-value" style={{ color: '#fb7185' }}>41,850 ETB</div>
-                  <div className="admin-stat-delta">32 completed · 2 pending</div>
-                </div>
-                <div className="admin-card">
-                  <div className="admin-stat-top">Today's Revenue (Rake)</div>
-                  <div className="admin-stat-value" style={{ color: '#22d3ee' }}>14,200 ETB</div>
-                  <div className="admin-stat-delta up">+12.8% margin</div>
-                </div>
-                <div className="admin-card">
-                  <div className="admin-stat-top">Monthly Revenue</div>
-                  <div className="admin-stat-value">342,000 ETB</div>
-                  <div className="admin-stat-delta up">30-day net commission</div>
-                </div>
-              </div>
-
-              {/* Live Games & Recent Activity */}
-              <div className="admin-grid-2" style={{ marginTop: '16px' }}>
-                {/* Live Games Table (View-Only) */}
-                <div className="admin-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <strong style={{ fontSize: '13px' }}>🎮 Live Running Games</strong>
-                    <span className="admin-status online">View Only</span>
                   </div>
 
-                  <div className="admin-table-wrap">
-                    <table className="admin-table" style={{ minWidth: '100%' }}>
-                      <thead>
-                        <tr>
-                          <th>Game #</th>
-                          <th>Players</th>
-                          <th>Stakes</th>
-                          <th>Prize Pool</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {liveGames.map((g) => (
-                          <tr key={g.id}>
-                            <td><strong>{g.gameNumber}</strong></td>
-                            <td>{g.playersCount} players</td>
-                            <td>{g.totalStakes} ETB</td>
-                            <td style={{ color: '#34d399', fontWeight: 700 }}>{g.prizePool} ETB</td>
-                            <td><span className="admin-status approved">{g.status}</span></td>
+                  {/* RECENT TRANSACTIONS */}
+                  <div className="panel transactions">
+                    <div className="panel-header">
+                      <div>
+                        <div className="panel-title">Recent Transactions</div>
+                        <div className="panel-sub">Latest platform activity</div>
+                      </div>
+                      <button
+                        className="open-btn"
+                        onClick={() => handleNavClick('deposits')}
+                      >
+                        View All
+                      </button>
+                    </div>
+
+                    <div>
+                      {transactions.slice(0, 4).map((tx) => (
+                        <div
+                          key={tx.id}
+                          className="transaction"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setSelectedTx(tx)}
+                        >
+                          <div className={`tx-icon ${tx.category}`}>
+                            {tx.category === 'deposit' ? (
+                              <svg viewBox="0 0 24 24">
+                                <path d="M12 19V5" />
+                                <path d="m6 11 6-6 6 6" />
+                              </svg>
+                            ) : (
+                              <svg viewBox="0 0 24 24">
+                                <path d="M12 5v14" />
+                                <path d="m18 13-6 6-6-6" />
+                              </svg>
+                            )}
+                          </div>
+
+                          <div className="tx-info">
+                            <div className="tx-name">
+                              {tx.category === 'deposit' ? 'Deposit' : 'Withdrawal'} · #{tx.id}
+                            </div>
+                            <div className="tx-meta">
+                              {tx.username} · {tx.time}
+                            </div>
+                          </div>
+
+                          <div className={`tx-amount ${tx.category}`}>
+                            {tx.category === 'deposit' ? `+${tx.amount}` : `-${tx.amount}`} ETB
+                            <div className="tx-status" style={{ textTransform: 'capitalize' }}>
+                              {tx.status}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* PAYMENT QUEUE & QUICK STATUS */}
+                <div>
+                  <div className="panel">
+                    <div className="panel-header">
+                      <div>
+                        <div className="panel-title">Payment Queue</div>
+                        <div className="panel-sub">Requests awaiting review</div>
+                      </div>
+                    </div>
+
+                    <div className="queue">
+                      <div
+                        className="queue-row"
+                        onClick={() => {
+                          setDepositFilter('pending');
+                          handleNavClick('deposits');
+                        }}
+                      >
+                        <div className="queue-icon deposit">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M12 19V5" />
+                            <path d="m6 11 6-6 6 6" />
+                          </svg>
+                        </div>
+
+                        <div className="queue-info">
+                          <div className="queue-name">Deposits</div>
+                          <div className="queue-meta">Payment requests</div>
+                        </div>
+
+                        <div className="pending">{pendingDepositsCount} pending</div>
+                      </div>
+
+                      <div
+                        className="queue-row"
+                        onClick={() => {
+                          setWithdrawFilter('pending');
+                          handleNavClick('withdrawals');
+                        }}
+                      >
+                        <div className="queue-icon withdraw">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M12 5v14" />
+                            <path d="m18 13-6 6-6-6" />
+                          </svg>
+                        </div>
+
+                        <div className="queue-info">
+                          <div className="queue-name">Withdrawals</div>
+                          <div className="queue-meta">Withdrawal requests</div>
+                        </div>
+
+                        <div className="pending">{pendingWithdrawalsCount} pending</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* QUICK STATUS */}
+                  <div className="panel transactions">
+                    <div className="panel-header">
+                      <div>
+                        <div className="panel-title">System Status</div>
+                        <div className="panel-sub">Current service state</div>
+                      </div>
+                    </div>
+
+                    <div className="queue">
+                      <div className="queue-row">
+                        <div className="queue-icon deposit">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M20 6 9 17l-5-5" />
+                          </svg>
+                        </div>
+
+                        <div className="queue-info">
+                          <div className="queue-name">API Services</div>
+                          <div className="queue-meta">All systems operational</div>
+                        </div>
+
+                        <div className="up">Online</div>
+                      </div>
+
+                      <div className="queue-row">
+                        <div className="queue-icon deposit">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M20 6 9 17l-5-5" />
+                          </svg>
+                        </div>
+
+                        <div className="queue-info">
+                          <div className="queue-name">Database</div>
+                          <div className="queue-meta">Connection healthy</div>
+                        </div>
+
+                        <div className="up">Healthy</div>
+                      </div>
+
+                      <div className="queue-row">
+                        <div className="queue-icon deposit">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M20 6 9 17l-5-5" />
+                          </svg>
+                        </div>
+
+                        <div className="queue-info">
+                          <div className="queue-name">Telegram Bot</div>
+                          <div className="queue-meta">Connected</div>
+                        </div>
+
+                        <div className="up">Online</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* =========================================
+              VIEW 2: USERS MANAGEMENT
+             ========================================= */}
+          {activeTab === 'users' && (
+            <>
+              <div className="page-heading">
+                <div>
+                  <h1>Users Management</h1>
+                  <p>Registered players, balance balances & account statuses</p>
+                </div>
+              </div>
+
+              <div className="filter-bar">
+                <div className="filter-tabs">
+                  <button
+                    className={`filter-tab ${userStatusFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setUserStatusFilter('all')}
+                  >
+                    All ({users.length})
+                  </button>
+                  <button
+                    className={`filter-tab ${userStatusFilter === 'active' ? 'active' : ''}`}
+                    onClick={() => setUserStatusFilter('active')}
+                  >
+                    Active ({users.filter((u) => u.status === 'active').length})
+                  </button>
+                  <button
+                    className={`filter-tab ${userStatusFilter === 'blocked' ? 'active' : ''}`}
+                    onClick={() => setUserStatusFilter('blocked')}
+                  >
+                    Blocked ({users.filter((u) => u.status === 'blocked').length})
+                  </button>
+                </div>
+
+                <div className="search-input-wrap">
+                  <svg viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search username, phone, or ID..."
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="panel">
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Player</th>
+                        <th>Phone</th>
+                        <th>Playable</th>
+                        <th>Withdrawable</th>
+                        <th>Total Wagered</th>
+                        <th>Record</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users
+                        .filter((u) => {
+                          if (userStatusFilter !== 'all' && u.status !== userStatusFilter) return false;
+                          if (
+                            userSearch &&
+                            !u.username.toLowerCase().includes(userSearch.toLowerCase()) &&
+                            !u.name.toLowerCase().includes(userSearch.toLowerCase()) &&
+                            !u.phone.includes(userSearch) &&
+                            !u.id.includes(userSearch)
+                          ) {
+                            return false;
+                          }
+                          return true;
+                        })
+                        .map((u) => (
+                          <tr key={u.id}>
+                            <td>
+                              <div style={{ fontWeight: 700, color: '#f8fafc' }}>{u.name}</div>
+                              <div style={{ color: '#8995a7', fontSize: '10px' }}>{u.username} · #{u.id}</div>
+                            </td>
+                            <td style={{ color: '#a5b4fc', fontFamily: 'monospace' }}>{u.phone}</td>
+                            <td style={{ color: '#22d3ee', fontWeight: 700 }}>{u.playableBalance.toLocaleString()} ETB</td>
+                            <td style={{ color: '#4ade80', fontWeight: 700 }}>{u.withdrawableBalance.toLocaleString()} ETB</td>
+                            <td style={{ color: '#8995a7' }}>{u.totalWagered.toLocaleString()} ETB</td>
+                            <td>
+                              <span style={{ color: '#4ade80', fontWeight: 600 }}>{u.winCount}W</span> /{' '}
+                              <span style={{ color: '#f87171', fontWeight: 600 }}>{u.lossCount}L</span>
+                            </td>
+                            <td>
+                              <span className={`pill-badge ${u.status}`}>{u.status}</span>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button className="sm-btn outline" onClick={() => setSelectedUser(u)}>
+                                  Profile
+                                </button>
+                                <button
+                                  className={`sm-btn ${u.status === 'active' ? 'danger' : 'success'}`}
+                                  onClick={() => handleToggleUserStatus(u.id)}
+                                >
+                                  {u.status === 'active' ? 'Block' : 'Unblock'}
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
+                    </tbody>
+                  </table>
                 </div>
+              </div>
+            </>
+          )}
 
-                {/* Recent Activity Stream */}
-                <div className="admin-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <strong style={{ fontSize: '13px' }}>📜 Recent Activity</strong>
-                    <span style={{ fontSize: '10.5px', color: '#8490a5' }}>Real-time</span>
-                  </div>
+          {/* =========================================
+              VIEW 3: TASKS
+             ========================================= */}
+          {activeTab === 'tasks' && (
+            <>
+              <div className="page-heading">
+                <div>
+                  <h1>Task & Quest Management</h1>
+                  <p>Incentivize player engagement with automated daily tasks and rewards</p>
+                </div>
+                <button className="action-btn" onClick={() => setShowNewTaskModal(true)}>
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Create New Task
+                </button>
+              </div>
 
-                  {recentActivities.map((act) => (
-                    <div key={act.id} className="admin-activity-item">
-                      <i className="admin-dot" />
-                      <div style={{ width: '100%' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <strong style={{ fontSize: '12px' }}>{act.title}</strong>
-                          <small style={{ color: '#8490a5', fontSize: '10.5px' }}>{act.time}</small>
+              <div className="cards-grid">
+                {tasks.map((task) => (
+                  <div key={task.id} className="item-card">
+                    <div>
+                      <div className="item-card-top">
+                        <div className="item-card-title">{task.title}</div>
+                        <span className={`pill-badge ${task.status}`}>{task.status}</span>
+                      </div>
+                      <div className="item-card-desc">{task.desc}</div>
+                    </div>
+
+                    <div>
+                      <div className="item-card-meta">
+                        <div>
+                          Reward: <span className="item-reward">{task.reward}</span>
                         </div>
-                        <div style={{ fontSize: '11px', color: '#cbd5e1', marginTop: '2px' }}>
-                          {act.detail}
+                        <div>Target: {task.target}</div>
+                        <div style={{ marginLeft: 'auto', color: '#a5b4fc', fontWeight: 600 }}>
+                          {task.completions.toLocaleString()} claimed
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
 
-          {/* ══════════════════════════════════════════════════
-              2. 💳 PAYMENTS SECTION
-          ══════════════════════════════════════════════════ */}
-          {activeSection === 'payments' && (
-            <section>
-              <div className="admin-head">
-                <div>
-                  <h1>Payments & Cashier</h1>
-                  <p>Review incoming deposits, verify SMS receipts, and approve withdrawal payouts.</p>
-                </div>
-              </div>
-
-              {/* Tabs */}
-              <div className="admin-tabs">
-                <button
-                  className={paymentTab === 'all' ? 'active' : ''}
-                  onClick={() => setPaymentTab('all')}
-                >
-                  All ({transactions.length})
-                </button>
-                <button
-                  className={paymentTab === 'pending' ? 'active' : ''}
-                  onClick={() => setPaymentTab('pending')}
-                >
-                  Pending ({pendingDeposits.length + pendingWithdrawals.length})
-                </button>
-                <button
-                  className={paymentTab === 'deposit' ? 'active' : ''}
-                  onClick={() => setPaymentTab('deposit')}
-                >
-                  Deposits ({transactions.filter((t) => t.type === 'positive').length})
-                </button>
-                <button
-                  className={paymentTab === 'withdrawal' ? 'active' : ''}
-                  onClick={() => setPaymentTab('withdrawal')}
-                >
-                  Withdrawals ({transactions.filter((t) => t.type === 'negative').length})
-                </button>
-              </div>
-
-              {/* Search */}
-              <div className="admin-toolbar">
-                <input
-                  type="text"
-                  className="admin-search"
-                  placeholder="Search player, transaction ID, phone, SMS..."
-                  value={paymentSearch}
-                  onChange={(e) => setPaymentSearch(e.target.value)}
-                />
-              </div>
-
-              {/* Transactions Table */}
-              <div className="admin-table-wrap">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Transaction ID</th>
-                      <th>Player</th>
-                      <th>Amount</th>
-                      <th>Method</th>
-                      <th>Reference / SMS Proof</th>
-                      <th>Status</th>
-                      <th>Time</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPayments.map((tx) => (
-                      <tr key={tx.id}>
-                        <td style={{ fontWeight: 700 }}>#{tx.id}</td>
-                        <td>
-                          <strong>{tx.playerName}</strong>
-                          <div style={{ fontSize: '10.5px', color: '#8490a5' }}>{tx.username}</div>
-                        </td>
-                        <td style={{ fontWeight: 700, color: tx.type === 'positive' ? '#34d399' : '#fb7185' }}>
-                          {tx.type === 'positive' ? '+' : ''}{tx.amount} ETB
-                        </td>
-                        <td>{tx.method}</td>
-                        <td style={{ color: '#22d3ee', fontSize: '11px' }}>{tx.meta}</td>
-                        <td><span className={`admin-status ${tx.status}`}>{tx.status}</span></td>
-                        <td style={{ color: '#8490a5' }}>{tx.timestamp}</td>
-                        <td>
-                          <button className="admin-btn review" onClick={() => setSelectedTx(tx)}>
-                            Review
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-
-          {/* ══════════════════════════════════════════════════
-              3. 👥 USERS SECTION
-          ══════════════════════════════════════════════════ */}
-          {activeSection === 'users' && (
-            <section>
-              <div className="admin-head">
-                <div>
-                  <h1>User Accounts</h1>
-                  <p>Search players, review profiles, inspect betting history, and manage access.</p>
-                </div>
-              </div>
-
-              <div className="admin-toolbar">
-                <input
-                  type="text"
-                  className="admin-search"
-                  placeholder="Search name, @username, ID, phone..."
-                  value={usersSearch}
-                  onChange={(e) => setUsersSearch(e.target.value)}
-                />
-              </div>
-
-              <div className="admin-table-wrap">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Player</th>
-                      <th>Telegram ID</th>
-                      <th>Phone</th>
-                      <th>Total Balance</th>
-                      <th>Wagered</th>
-                      <th>Status</th>
-                      <th>Joined</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredUsers.map((user) => (
-                      <tr key={user.id}>
-                        <td>
-                          <strong>{user.name}</strong>
-                          <div style={{ fontSize: '10.5px', color: '#8490a5' }}>{user.username}</div>
-                        </td>
-                        <td>#{user.id}</td>
-                        <td>{user.phone}</td>
-                        <td style={{ color: '#22d3ee', fontWeight: 700 }}>{user.totalBalance} ETB</td>
-                        <td>{user.totalWagered || 0} ETB</td>
-                        <td><span className={`admin-status ${user.status}`}>{user.status}</span></td>
-                        <td style={{ color: '#8490a5' }}>{user.joinedDate}</td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            <button className="admin-btn" onClick={() => setSelectedUser(user)}>
-                              Profile
-                            </button>
-                            <button
-                              className={`admin-btn ${user.status === 'active' ? 'danger' : 'success'}`}
-                              onClick={() => handleToggleBlockUser(user.id)}
-                            >
-                              {user.status === 'active' ? 'Block' : 'Unblock'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-
-          {/* ══════════════════════════════════════════════════
-              4. 🎮 GAMES (View-Only Monitoring)
-          ══════════════════════════════════════════════════ */}
-          {activeSection === 'games' && (
-            <section>
-              <div className="admin-head">
-                <div>
-                  <h1>Games Monitoring (View Only)</h1>
-                  <p>Real-time game server activity, active tickets, and historical round records.</p>
-                </div>
-                <span className="admin-status online">● Game Server Active</span>
-              </div>
-
-              <div className="admin-section-title">Live Active Lobbies</div>
-              <div className="admin-grid-3">
-                {liveGames.map((g) => (
-                  <div key={g.id} className="admin-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <strong>{g.gameType}</strong>
-                      <span className="admin-status approved">{g.status}</span>
-                    </div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#22d3ee', margin: '4px 0' }}>
-                      {g.prizePool} ETB <small style={{ fontSize: '11px', color: '#8490a5' }}>Prize Pool</small>
-                    </div>
-                    <div style={{ fontSize: '11.5px', color: '#cbd5e1', lineHeight: '1.6' }}>
-                      <div>Game Number: <strong>{g.gameNumber}</strong></div>
-                      <div>Active Players: {g.playersCount}</div>
-                      <div>Total Stakes Collected: {g.totalStakes} ETB</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="admin-section-title" style={{ marginTop: '20px' }}>Completed Games History</div>
-              <div className="admin-table-wrap">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Game #</th>
-                      <th>Game Mode</th>
-                      <th>Players</th>
-                      <th>Total Stakes</th>
-                      <th>Winner Prize</th>
-                      <th>Platform Commission</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>#BINGO-107</td>
-                      <td>Bingo Live (10 ETB)</td>
-                      <td>35 players</td>
-                      <td>350 ETB</td>
-                      <td style={{ color: '#34d399', fontWeight: 700 }}>315 ETB</td>
-                      <td>35 ETB (10%)</td>
-                      <td><span className="admin-status approved">Completed</span></td>
-                    </tr>
-                    <tr>
-                      <td>#KENO-401</td>
-                      <td>Keno Turbo</td>
-                      <td>19 players</td>
-                      <td>570 ETB</td>
-                      <td style={{ color: '#34d399', fontWeight: 700 }}>524 ETB</td>
-                      <td>46 ETB (8%)</td>
-                      <td><span className="admin-status approved">Completed</span></td>
-                    </tr>
-                    <tr>
-                      <td>#BINGO-106</td>
-                      <td>VIP Bingo (50 ETB)</td>
-                      <td>12 players</td>
-                      <td>600 ETB</td>
-                      <td style={{ color: '#34d399', fontWeight: 700 }}>540 ETB</td>
-                      <td>60 ETB (10%)</td>
-                      <td><span className="admin-status approved">Completed</span></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-
-          {/* ══════════════════════════════════════════════════
-              5. 📊 ANALYTICS
-          ══════════════════════════════════════════════════ */}
-          {activeSection === 'analytics' && (
-            <section>
-              <div className="admin-head">
-                <div>
-                  <h1>Performance Analytics</h1>
-                  <p>Daily, weekly, and monthly breakdown of platform revenue and user engagement.</p>
-                </div>
-                <div className="admin-tabs" style={{ marginBottom: 0 }}>
-                  <button className={analyticsPeriod === 'daily' ? 'active' : ''} onClick={() => setAnalyticsPeriod('daily')}>Daily</button>
-                  <button className={analyticsPeriod === 'weekly' ? 'active' : ''} onClick={() => setAnalyticsPeriod('weekly')}>Weekly</button>
-                  <button className={analyticsPeriod === 'monthly' ? 'active' : ''} onClick={() => setAnalyticsPeriod('monthly')}>Monthly</button>
-                </div>
-              </div>
-
-              <div className="admin-grid-4">
-                <div className="admin-card">
-                  <div className="admin-stat-top">Turnover Volume</div>
-                  <div className="admin-stat-value">133,500 ETB</div>
-                  <div className="admin-stat-delta up">+18% growth</div>
-                </div>
-                <div className="admin-card">
-                  <div className="admin-stat-top">Deposit Volume</div>
-                  <div className="admin-stat-value">86,420 ETB</div>
-                  <div className="admin-stat-delta up">+12.4% vs prev</div>
-                </div>
-                <div className="admin-card">
-                  <div className="admin-stat-top">Withdrawal Volume</div>
-                  <div className="admin-stat-value">41,850 ETB</div>
-                  <div className="admin-stat-delta">Paid out</div>
-                </div>
-                <div className="admin-card">
-                  <div className="admin-stat-top">Net Platform Margin</div>
-                  <div className="admin-stat-value" style={{ color: '#34d399' }}>14,200 ETB</div>
-                  <div className="admin-stat-delta up">House profit</div>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* ══════════════════════════════════════════════════
-              6. 🎁 PROMOTIONS
-          ══════════════════════════════════════════════════ */}
-          {activeSection === 'promotions' && (
-            <section>
-              <div className="admin-head">
-                <div>
-                  <h1>Promotions & Campaigns</h1>
-                  <p>Manage user incentives, deposit match bonuses, daily tasks, and promo codes.</p>
-                </div>
-                <button className="admin-btn primary" onClick={() => setShowNewPromoModal(true)}>
-                  + New Campaign
-                </button>
-              </div>
-
-              <div className="admin-table-wrap">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Campaign Title</th>
-                      <th>Type</th>
-                      <th>Reward</th>
-                      <th>Target Audience</th>
-                      <th>Claimed</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {promotions.map((p) => (
-                      <tr key={p.id}>
-                        <td><strong>{p.title}</strong></td>
-                        <td>{p.type}</td>
-                        <td style={{ color: '#22d3ee' }}>{p.reward}</td>
-                        <td>{p.target}</td>
-                        <td>{p.claimedCount.toLocaleString()} users</td>
-                        <td><span className="admin-status approved">{p.status}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-
-          {/* ══════════════════════════════════════════════════
-              7. 🧾 TRANSACTIONS
-          ══════════════════════════════════════════════════ */}
-          {activeSection === 'transactions' && (
-            <section>
-              <div className="admin-head">
-                <div>
-                  <h1>Master Transaction Ledger</h1>
-                  <p>Complete historical ledger of all deposits, withdrawals, and game transactions.</p>
-                </div>
-              </div>
-
-              <div className="admin-table-wrap">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Player</th>
-                      <th>Type</th>
-                      <th>Amount</th>
-                      <th>Method</th>
-                      <th>Details</th>
-                      <th>Status</th>
-                      <th>Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.map((tx) => (
-                      <tr key={tx.id}>
-                        <td><strong>#{tx.id}</strong></td>
-                        <td>{tx.playerName}</td>
-                        <td>{tx.title}</td>
-                        <td style={{ color: tx.type === 'positive' ? '#34d399' : '#fb7185', fontWeight: 700 }}>
-                          {tx.type === 'positive' ? '+' : ''}{tx.amount} ETB
-                        </td>
-                        <td>{tx.method}</td>
-                        <td style={{ fontSize: '11px', color: '#8490a5' }}>{tx.meta}</td>
-                        <td><span className={`admin-status ${tx.status}`}>{tx.status}</span></td>
-                        <td style={{ color: '#8490a5' }}>{tx.timestamp}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-
-          {/* ══════════════════════════════════════════════════
-              8. 🔔 NOTIFICATIONS
-          ══════════════════════════════════════════════════ */}
-          {activeSection === 'notifications' && (
-            <section>
-              <div className="admin-head">
-                <div>
-                  <h1>System & Operational Alerts</h1>
-                  <p>Critical platform alerts, pending payment reminders, and server notices.</p>
-                </div>
-                <button
-                  className="admin-btn"
-                  onClick={() => {
-                    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-                    showToast('All notifications marked as read');
-                  }}
-                >
-                  Mark All as Read
-                </button>
-              </div>
-
-              <div className="admin-card">
-                {notifications.map((n) => (
-                  <div key={n.id} className="admin-activity-item">
-                    <i className={`admin-dot ${n.type === 'alert' ? 'yellow' : ''}`} />
-                    <div style={{ width: '100%' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <strong style={{ fontSize: '12.5px' }}>{n.title}</strong>
-                        <small style={{ color: '#8490a5', fontSize: '10.5px' }}>{n.time}</small>
-                      </div>
-                      <div style={{ fontSize: '11.5px', color: '#cbd5e1', marginTop: '2px' }}>
-                        {n.message}
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                        <button
+                          className={`sm-btn ${task.status === 'active' ? 'danger' : 'success'}`}
+                          style={{ flex: 1 }}
+                          onClick={() => {
+                            setTasks((prev) =>
+                              prev.map((t) =>
+                                t.id === task.id
+                                  ? { ...t, status: t.status === 'active' ? 'disabled' : 'active' }
+                                  : t
+                              )
+                            );
+                          }}
+                        >
+                          {task.status === 'active' ? 'Disable' : 'Enable'}
+                        </button>
+                        <button
+                          className="sm-btn outline"
+                          onClick={() => {
+                            setTasks((prev) => prev.filter((t) => t.id !== task.id));
+                            showToast('Task removed.');
+                          }}
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-            </section>
+            </>
           )}
 
-          {/* ══════════════════════════════════════════════════
-              9. ⚙️ SETTINGS
-          ══════════════════════════════════════════════════ */}
-          {activeSection === 'settings' && (
-            <section>
-              <div className="admin-head">
+          {/* =========================================
+              VIEW 4: PROMO CODES
+             ========================================= */}
+          {activeTab === 'promocodes' && (
+            <>
+              <div className="page-heading">
                 <div>
-                  <h1>System & Gateway Configuration</h1>
-                  <p>Configure official receiving accounts, limits, and administrator credentials.</p>
+                  <h1>Promo Codes & Vouchers</h1>
+                  <p>Create deposit bonuses and free cartela tickets for social campaigns</p>
                 </div>
-                <button className="admin-btn primary" onClick={() => showToast('Configuration saved')}>
-                  💾 Save Settings
+                <button className="action-btn" onClick={() => setShowNewPromoModal(true)}>
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Generate Promo Code
                 </button>
               </div>
 
-              <div className="admin-card" style={{ marginBottom: '16px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px' }}>
-                  Official Payment Gateway Receiving Accounts
+              <div className="cards-grid">
+                {promos.map((promo) => (
+                  <div key={promo.id} className="item-card">
+                    <div>
+                      <div className="item-card-top">
+                        <div style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 800, color: '#a5b4fc' }}>
+                          {promo.code}
+                        </div>
+                        <span className={`pill-badge ${promo.status}`}>{promo.status}</span>
+                      </div>
+                      <div className="item-card-desc" style={{ marginTop: '6px' }}>
+                        {promo.reward}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="item-card-meta">
+                        <div>
+                          Usage: <span style={{ color: '#f8fafc', fontWeight: 700 }}>{promo.usedCount}</span> / {promo.maxUses}
+                        </div>
+                        <div style={{ marginLeft: 'auto' }}>Expires: {promo.expiry}</div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                        <button
+                          className="sm-btn primary"
+                          style={{ flex: 1 }}
+                          onClick={() => {
+                            navigator.clipboard?.writeText(promo.code);
+                            showToast(`Copied code ${promo.code} to clipboard!`);
+                          }}
+                        >
+                          Copy Code
+                        </button>
+                        <button
+                          className="sm-btn outline"
+                          onClick={() => {
+                            setPromos((prev) => prev.filter((p) => p.id !== promo.id));
+                            showToast('Promo code deleted.');
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* =========================================
+              VIEW 5: DEPOSITS
+             ========================================= */}
+          {activeTab === 'deposits' && (
+            <>
+              <div className="page-heading">
+                <div>
+                  <h1>Deposits Cashier</h1>
+                  <p>Telebirr & CBE Birr customer payment verification requests</p>
+                </div>
+              </div>
+
+              <div className="filter-bar">
+                <div className="filter-tabs">
+                  <button
+                    className={`filter-tab ${depositFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setDepositFilter('all')}
+                  >
+                    All
+                  </button>
+                  <button
+                    className={`filter-tab ${depositFilter === 'pending' ? 'active' : ''}`}
+                    onClick={() => setDepositFilter('pending')}
+                  >
+                    Pending ({pendingDepositsCount})
+                  </button>
+                  <button
+                    className={`filter-tab ${depositFilter === 'completed' ? 'active' : ''}`}
+                    onClick={() => setDepositFilter('completed')}
+                  >
+                    Completed
+                  </button>
+                  <button
+                    className={`filter-tab ${depositFilter === 'rejected' ? 'active' : ''}`}
+                    onClick={() => setDepositFilter('rejected')}
+                  >
+                    Rejected
+                  </button>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
-                  <div className="admin-input-group">
-                    <label>Telebirr Merchant / Phone</label>
+                <div className="search-input-wrap">
+                  <svg viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search player, TX ID, or SMS code..."
+                    value={txSearch}
+                    onChange={(e) => setTxSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="panel">
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Order ID</th>
+                        <th>Player</th>
+                        <th>Method</th>
+                        <th>SMS Reference</th>
+                        <th>Amount</th>
+                        <th>Time</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transactions
+                        .filter((t) => t.category === 'deposit')
+                        .filter((t) => (depositFilter !== 'all' ? t.status === depositFilter : true))
+                        .filter((t) => {
+                          if (!txSearch) return true;
+                          const s = txSearch.toLowerCase();
+                          return (
+                            t.id.toLowerCase().includes(s) ||
+                            t.username.toLowerCase().includes(s) ||
+                            t.playerName.toLowerCase().includes(s) ||
+                            (t.smsRef && t.smsRef.toLowerCase().includes(s))
+                          );
+                        })
+                        .map((tx) => (
+                          <tr key={tx.id}>
+                            <td style={{ fontFamily: 'monospace', fontWeight: 700, color: '#f8fafc' }}>
+                              #{tx.id}
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 600 }}>{tx.playerName}</div>
+                              <div style={{ color: '#8995a7', fontSize: '10px' }}>{tx.username}</div>
+                            </td>
+                            <td style={{ color: '#22d3ee', fontWeight: 600 }}>{tx.method}</td>
+                            <td style={{ fontFamily: 'monospace', color: '#a5b4fc' }}>{tx.smsRef || '—'}</td>
+                            <td style={{ color: '#4ade80', fontWeight: 700, fontSize: '13px' }}>
+                              +{tx.amount} ETB
+                            </td>
+                            <td style={{ color: '#8995a7' }}>{tx.time}</td>
+                            <td>
+                              <span className={`pill-badge ${tx.status}`}>{tx.status}</span>
+                            </td>
+                            <td>
+                              <button className="sm-btn primary" onClick={() => setSelectedTx(tx)}>
+                                {tx.status === 'pending' ? 'Review & Approve' : 'Details'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* =========================================
+              VIEW 6: WITHDRAWALS
+             ========================================= */}
+          {activeTab === 'withdrawals' && (
+            <>
+              <div className="page-heading">
+                <div>
+                  <h1>Withdrawals Cashier</h1>
+                  <p>Player prize payout requests awaiting transfer approval</p>
+                </div>
+              </div>
+
+              <div className="filter-bar">
+                <div className="filter-tabs">
+                  <button
+                    className={`filter-tab ${withdrawFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setWithdrawFilter('all')}
+                  >
+                    All
+                  </button>
+                  <button
+                    className={`filter-tab ${withdrawFilter === 'pending' ? 'active' : ''}`}
+                    onClick={() => setWithdrawFilter('pending')}
+                  >
+                    Pending ({pendingWithdrawalsCount})
+                  </button>
+                  <button
+                    className={`filter-tab ${withdrawFilter === 'completed' ? 'active' : ''}`}
+                    onClick={() => setWithdrawFilter('completed')}
+                  >
+                    Completed
+                  </button>
+                  <button
+                    className={`filter-tab ${withdrawFilter === 'rejected' ? 'active' : ''}`}
+                    onClick={() => setWithdrawFilter('rejected')}
+                  >
+                    Rejected
+                  </button>
+                </div>
+
+                <div className="search-input-wrap">
+                  <svg viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search player or payout account..."
+                    value={txSearch}
+                    onChange={(e) => setTxSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="panel">
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Order ID</th>
+                        <th>Player</th>
+                        <th>Method</th>
+                        <th>Destination Account</th>
+                        <th>Amount</th>
+                        <th>Time</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transactions
+                        .filter((t) => t.category === 'withdrawal')
+                        .filter((t) => (withdrawFilter !== 'all' ? t.status === withdrawFilter : true))
+                        .filter((t) => {
+                          if (!txSearch) return true;
+                          const s = txSearch.toLowerCase();
+                          return (
+                            t.id.toLowerCase().includes(s) ||
+                            t.username.toLowerCase().includes(s) ||
+                            t.playerName.toLowerCase().includes(s) ||
+                            (t.accountNumber && t.accountNumber.toLowerCase().includes(s))
+                          );
+                        })
+                        .map((tx) => (
+                          <tr key={tx.id}>
+                            <td style={{ fontFamily: 'monospace', fontWeight: 700, color: '#f8fafc' }}>
+                              #{tx.id}
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 600 }}>{tx.playerName}</div>
+                              <div style={{ color: '#8995a7', fontSize: '10px' }}>{tx.username}</div>
+                            </td>
+                            <td style={{ color: '#a5b4fc', fontWeight: 600 }}>{tx.method}</td>
+                            <td style={{ fontFamily: 'monospace', color: '#f8fafc' }}>
+                              {tx.accountNumber || tx.phone}
+                            </td>
+                            <td style={{ color: '#f87171', fontWeight: 700, fontSize: '13px' }}>
+                              -{tx.amount} ETB
+                            </td>
+                            <td style={{ color: '#8995a7' }}>{tx.time}</td>
+                            <td>
+                              <span className={`pill-badge ${tx.status}`}>{tx.status}</span>
+                            </td>
+                            <td>
+                              <button className="sm-btn primary" onClick={() => setSelectedTx(tx)}>
+                                {tx.status === 'pending' ? 'Review & Pay' : 'Details'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* =========================================
+              VIEW 7: BROADCAST
+             ========================================= */}
+          {activeTab === 'broadcast' && (
+            <>
+              <div className="page-heading">
+                <div>
+                  <h1>Broadcast Announcement</h1>
+                  <p>Send real-time notifications to Telegram bot users and in-game feeds</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(300px, 1fr)', gap: '16px' }}>
+                <div className="form-panel">
+                  <h3 style={{ fontSize: '14px', marginBottom: '16px', fontWeight: 700 }}>New Message Broadcast</h3>
+                  <form onSubmit={handleSendBroadcast}>
+                    <div className="form-group">
+                      <label className="form-label">Target Audience</label>
+                      <select
+                        className="select"
+                        style={{ width: '100%', height: '40px', fontSize: '12px' }}
+                        value={bcTarget}
+                        onChange={(e) => setBcTarget(e.target.value)}
+                      >
+                        <option>All Players (1,284)</option>
+                        <option>Active Today (450)</option>
+                        <option>VIP High Rollers (Deposits &gt; 1,000 ETB)</option>
+                        <option>New Players (Registered &lt; 7 Days)</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Broadcast Title</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. 🎁 Weekend Free Ticket Bonus!"
+                        value={bcTitle}
+                        onChange={(e) => setBcTitle(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Message Content</label>
+                      <textarea
+                        placeholder="Write your announcement here. Supports Telegram markdown formatting and emojis..."
+                        value={bcMessage}
+                        onChange={(e) => setBcMessage(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <button type="submit" className="action-btn" style={{ width: '100%', justifyContent: 'center', height: '42px' }}>
+                      <svg viewBox="0 0 24 24">
+                        <path d="m22 2-7 20-4-9-9-4Z" />
+                        <path d="M22 2 11 13" />
+                      </svg>
+                      Send Broadcast Message Now
+                    </button>
+                  </form>
+                </div>
+
+                <div className="panel">
+                  <div className="panel-header">
+                    <div>
+                      <div className="panel-title">Sent History</div>
+                      <div className="panel-sub">Recent announcements</div>
+                    </div>
+                  </div>
+
+                  <div className="sidebar-scroll" style={{ maxHeight: '420px', padding: '10px' }}>
+                    {broadcasts.map((bc) => (
+                      <div
+                        key={bc.id}
+                        style={{
+                          background: '#111827',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          padding: '12px',
+                          marginBottom: '10px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontWeight: 700, fontSize: '12px', color: '#f8fafc' }}>{bc.title}</span>
+                          <span className="pill-badge healthy">{bc.status}</span>
+                        </div>
+                        <p style={{ fontSize: '10px', color: '#8995a7', marginBottom: '8px', lineHeight: 1.4 }}>
+                          {bc.message}
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#566276' }}>
+                          <span>Target: {bc.target}</span>
+                          <span>{bc.sentAt}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* =========================================
+              VIEW 8: SETTINGS
+             ========================================= */}
+          {activeTab === 'settings' && (
+            <>
+              <div className="page-heading">
+                <div>
+                  <h1>System & Payment Settings</h1>
+                  <p>Configure automated cashier bank accounts, limits, and system parameters</p>
+                </div>
+              </div>
+
+              <div className="form-panel">
+                <form onSubmit={handleSaveSettings}>
+                  <h3 style={{ fontSize: '13px', color: '#a5b4fc', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                    Telebirr Configuration
+                  </h3>
+
+                  <div className="form-group">
+                    <label className="form-label">Telebirr Merchant / Receiver Phone Number</label>
                     <input
                       type="text"
+                      className="form-input"
                       value={telebirrPhone}
                       onChange={(e) => setTelebirrPhone(e.target.value)}
                     />
                   </div>
-                  <div className="admin-input-group">
-                    <label>CBE Bank Account Number</label>
+
+                  <h3 style={{ fontSize: '13px', color: '#a5b4fc', margin: '24px 0 16px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                    Commercial Bank of Ethiopia (CBE) Configuration
+                  </h3>
+
+                  <div className="form-group">
+                    <label className="form-label">CBE Account Number</label>
                     <input
                       type="text"
+                      className="form-input"
                       value={cbeAccount}
                       onChange={(e) => setCbeAccount(e.target.value)}
                     />
                   </div>
-                </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <div className="admin-input-group">
-                    <label>Minimum Deposit Limit (ETB)</label>
+                  <div className="form-group">
+                    <label className="form-label">CBE Account Holder Name</label>
                     <input
-                      type="number"
-                      value={minDeposit}
-                      onChange={(e) => setMinDeposit(Number(e.target.value))}
+                      type="text"
+                      className="form-input"
+                      value={cbeAccountName}
+                      onChange={(e) => setCbeAccountName(e.target.value)}
                     />
                   </div>
-                  <div className="admin-input-group">
-                    <label>Minimum Withdrawal Limit (ETB)</label>
-                    <input
-                      type="number"
-                      value={minWithdraw}
-                      onChange={(e) => setMinWithdraw(Number(e.target.value))}
-                    />
-                  </div>
-                </div>
-              </div>
 
-              <div className="admin-card">
-                <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px' }}>
-                  Admin Security Account
-                </div>
-                <div style={{ fontSize: '12px', color: '#cbd5e1' }}>
-                  Current Active Account: <strong>admin</strong> (Role: Owner)
-                </div>
+                  <h3 style={{ fontSize: '13px', color: '#a5b4fc', margin: '24px 0 16px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                    Platform Limits & House Margin
+                  </h3>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                    <div className="form-group">
+                      <label className="form-label">Min Deposit (ETB)</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={minDeposit}
+                        onChange={(e) => setMinDeposit(Number(e.target.value))}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Min Withdrawal (ETB)</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={minWithdraw}
+                        onChange={(e) => setMinWithdraw(Number(e.target.value))}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Bingo Commission (%)</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={bingoHouseFee}
+                        onChange={(e) => setBingoHouseFee(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+
+                  <button type="submit" className="action-btn" style={{ marginTop: '16px' }}>
+                    Save Platform Settings
+                  </button>
+                </form>
               </div>
-            </section>
+            </>
           )}
-        </div>
 
-        {/* ── Mobile Bottom Navigation Bar (4 Items) ── */}
-        <nav className="admin-bottom-nav">
-          <button
-            className={`admin-bottom-btn ${activeSection === 'overview' ? 'active' : ''}`}
-            onClick={() => navigateTo('overview')}
-          >
-            <span className="admin-bottom-icon">🏠</span>
-            <span>Overview</span>
-          </button>
+          {/* =========================================
+              VIEW 9: MAINTENANCE
+             ========================================= */}
+          {activeTab === 'maintenance' && (
+            <>
+              <div className="page-heading">
+                <div>
+                  <h1>Maintenance & Server Controls</h1>
+                  <p>Manage system state, engine restarts, and emergency maintenance mode</p>
+                </div>
+              </div>
 
-          <button
-            className={`admin-bottom-btn ${activeSection === 'payments' ? 'active' : ''}`}
-            onClick={() => navigateTo('payments')}
-          >
-            <span className="admin-bottom-icon">💳</span>
-            <span>Payments</span>
-            {pendingDeposits.length + pendingWithdrawals.length > 0 && (
-              <span className="admin-bottom-badge">
-                {pendingDeposits.length + pendingWithdrawals.length}
-              </span>
-            )}
-          </button>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.3fr) minmax(300px, 1fr)', gap: '16px' }}>
+                <div className="form-panel">
+                  <h3 style={{ fontSize: '14px', marginBottom: '16px', fontWeight: 700 }}>Maintenance Mode</h3>
 
-          <button
-            className={`admin-bottom-btn ${activeSection === 'users' ? 'active' : ''}`}
-            onClick={() => navigateTo('users')}
-          >
-            <span className="admin-bottom-icon">👥</span>
-            <span>Users</span>
-          </button>
+                  <div
+                    style={{
+                      background: '#111827',
+                      border: '1px solid var(--border)',
+                      borderRadius: '10px',
+                      padding: '16px',
+                      marginBottom: '18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '13px' }}>System Maintenance Switch</div>
+                      <div style={{ color: '#8995a7', fontSize: '10px', marginTop: '2px' }}>
+                        When active, players see the maintenance banner and gameplay is paused.
+                      </div>
+                    </div>
 
-          <button
-            className="admin-bottom-btn"
-            onClick={() => setMobileDrawerOpen(true)}
-          >
-            <span className="admin-bottom-icon">⋯</span>
-            <span>More</span>
-          </button>
-        </nav>
+                    <button
+                      className={`sm-btn ${isMaintenanceMode ? 'danger' : 'success'}`}
+                      style={{ padding: '8px 16px', fontSize: '11px' }}
+                      onClick={() => {
+                        setIsMaintenanceMode(!isMaintenanceMode);
+                        showToast(
+                          !isMaintenanceMode ? 'Maintenance mode ACTIVATED.' : 'Maintenance mode DEACTIVATED.'
+                        );
+                      }}
+                    >
+                      {isMaintenanceMode ? 'DISABLE MAINTENANCE' : 'ACTIVATE MAINTENANCE'}
+                    </button>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Player Notice Message</label>
+                    <textarea
+                      value={maintenanceBanner}
+                      onChange={(e) => setMaintenanceBanner(e.target.value)}
+                    />
+                  </div>
+
+                  <button
+                    className="action-btn"
+                    onClick={() => showToast('Maintenance message updated.')}
+                  >
+                    Update Banner Notice
+                  </button>
+                </div>
+
+                <div className="panel">
+                  <div className="panel-header">
+                    <div>
+                      <div className="panel-title">Server Engine Actions</div>
+                      <div className="panel-sub">Operational commands</div>
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <button
+                      className="sm-btn outline"
+                      style={{ padding: '12px', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      onClick={() => showToast('Bingo Multiplayer Engine restarted successfully.')}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '11px', color: '#f8fafc' }}>Restart Bingo Engine</div>
+                        <div style={{ fontSize: '9px', color: '#8995a7' }}>Soft reload of active game room daubers</div>
+                      </div>
+                      <span className="pill-badge healthy">Ready</span>
+                    </button>
+
+                    <button
+                      className="sm-btn outline"
+                      style={{ padding: '12px', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      onClick={() => showToast('Telegram Webhook reconnect initiated.')}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '11px', color: '#f8fafc' }}>Reconnect Telegram Gateway</div>
+                        <div style={{ fontSize: '9px', color: '#8995a7' }}>Refreshes bot webhook connection</div>
+                      </div>
+                      <span className="pill-badge healthy">Ready</span>
+                    </button>
+
+                    <button
+                      className="sm-btn outline"
+                      style={{ padding: '12px', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      onClick={() => showToast('Database snapshot created successfully.')}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '11px', color: '#f8fafc' }}>Create Database Backup</div>
+                        <div style={{ fontSize: '9px', color: '#8995a7' }}>Exports encrypted ledger backup</div>
+                      </div>
+                      <span className="pill-badge healthy">Ready</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </section>
       </main>
 
-      {/* ── Fast Payment Review Modal ── */}
+      {/* =========================================
+          MODAL: TRANSACTION REVIEW (DEPOSIT / WITHDRAWAL)
+         ========================================= */}
       {selectedTx && (
-        <div className="admin-modal-backdrop" onClick={() => setSelectedTx(null)}>
-          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="admin-modal-header">
-              <div className="admin-modal-title">Review Payment #{selectedTx.id}</div>
-              <button
-                onClick={() => setSelectedTx(null)}
-                style={{ background: 'none', border: 'none', color: '#8490a5', fontSize: '18px', cursor: 'pointer' }}
-              >
+        <div className="modal-backdrop" onClick={() => setSelectedTx(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>
+                Review {selectedTx.category === 'deposit' ? 'Deposit' : 'Withdrawal'} #{selectedTx.id}
+              </h3>
+              <button className="modal-close" onClick={() => setSelectedTx(null)}>
                 ✕
               </button>
             </div>
 
-            <div style={{ background: '#0b1220', padding: '14px', borderRadius: '10px', marginBottom: '14px', fontSize: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ color: '#8490a5' }}>Player:</span>
-                <strong>{selectedTx.playerName} ({selectedTx.username})</strong>
+            <div className="modal-body">
+              <div className="receipt-box">
+                <div className="receipt-row">
+                  <span className="label">Order ID</span>
+                  <span className="val" style={{ fontFamily: 'monospace' }}>#{selectedTx.id}</span>
+                </div>
+                <div className="receipt-row">
+                  <span className="label">Player Name</span>
+                  <span className="val">{selectedTx.playerName} ({selectedTx.username})</span>
+                </div>
+                <div className="receipt-row">
+                  <span className="label">Phone Number</span>
+                  <span className="val">{selectedTx.phone}</span>
+                </div>
+                <div className="receipt-row">
+                  <span className="label">Payment Method</span>
+                  <span className="val" style={{ color: '#22d3ee' }}>{selectedTx.method}</span>
+                </div>
+                {selectedTx.smsRef && (
+                  <div className="receipt-row">
+                    <span className="label">SMS Reference Code</span>
+                    <span className="val" style={{ color: '#ffd15c', fontFamily: 'monospace' }}>
+                      {selectedTx.smsRef}
+                    </span>
+                  </div>
+                )}
+                {selectedTx.accountNumber && (
+                  <div className="receipt-row">
+                    <span className="label">Payout Account</span>
+                    <span className="val" style={{ color: '#a5b4fc', fontFamily: 'monospace' }}>
+                      {selectedTx.accountNumber}
+                    </span>
+                  </div>
+                )}
+                <div className="receipt-row" style={{ marginTop: '8px', paddingTop: '8px' }}>
+                  <span className="label" style={{ fontSize: '13px', fontWeight: 700 }}>Total Amount</span>
+                  <span
+                    className="val"
+                    style={{
+                      fontSize: '15px',
+                      color: selectedTx.category === 'deposit' ? '#4ade80' : '#f87171',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {selectedTx.category === 'deposit' ? `+${selectedTx.amount}` : `-${selectedTx.amount}`} ETB
+                  </span>
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ color: '#8490a5' }}>Amount:</span>
-                <strong style={{ fontSize: '15px', color: selectedTx.type === 'positive' ? '#34d399' : '#fb7185' }}>
-                  {selectedTx.amount} ETB
-                </strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ color: '#8490a5' }}>Method:</span>
-                <span>{selectedTx.method}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ color: '#8490a5' }}>Payment Reference / SMS:</span>
-                <strong style={{ color: '#22d3ee' }}>{selectedTx.meta}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#8490a5' }}>Status:</span>
-                <span className={`admin-status ${selectedTx.status}`}>{selectedTx.status}</span>
-              </div>
+
+              {selectedTx.status === 'pending' && (
+                <div className="form-group">
+                  <label className="form-label">Rejection Note (if rejecting)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="e.g. Invalid SMS confirmation / amount mismatch"
+                  />
+                </div>
+              )}
             </div>
 
-            {selectedTx.status === 'pending' && (
-              <div className="admin-input-group">
-                <label>Rejection Reason (if rejecting)</label>
-                <input
-                  type="text"
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                />
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '12px' }}>
+            <div className="modal-foot">
               {selectedTx.status === 'pending' ? (
                 <>
-                  <button className="admin-btn danger" onClick={() => handleRejectTx(selectedTx.id)}>
-                    Reject Payment
+                  <button className="sm-btn danger" style={{ padding: '8px 14px' }} onClick={() => handleRejectTx(selectedTx)}>
+                    Reject Request
                   </button>
-                  <button className="admin-btn success" onClick={() => handleApproveTx(selectedTx.id)}>
-                    ✓ Approve Payment
+                  <button className="sm-btn success" style={{ padding: '8px 16px' }} onClick={() => handleApproveTx(selectedTx)}>
+                    {selectedTx.category === 'deposit' ? 'Approve & Credit Balance' : 'Approve & Mark Paid'}
                   </button>
                 </>
               ) : (
-                <button className="admin-btn" onClick={() => setSelectedTx(null)}>
+                <button className="sm-btn outline" onClick={() => setSelectedTx(null)}>
                   Close
                 </button>
               )}
@@ -1425,51 +2127,68 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* ── User Profile Drawer Modal ── */}
+      {/* =========================================
+          MODAL: USER PROFILE INSPECT
+         ========================================= */}
       {selectedUser && (
-        <div className="admin-modal-backdrop" onClick={() => setSelectedUser(null)}>
-          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="admin-modal-header">
-              <div className="admin-modal-title">Player Profile: {selectedUser.name}</div>
-              <button
-                onClick={() => setSelectedUser(null)}
-                style={{ background: 'none', border: 'none', color: '#8490a5', fontSize: '18px', cursor: 'pointer' }}
-              >
+        <div className="modal-backdrop" onClick={() => setSelectedUser(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>Player Profile: {selectedUser.username}</h3>
+              <button className="modal-close" onClick={() => setSelectedUser(null)}>
                 ✕
               </button>
             </div>
 
-            <div style={{ background: '#0b1220', padding: '14px', borderRadius: '10px', marginBottom: '14px', fontSize: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: '#8490a5' }}>Telegram ID:</span>
-                <strong>#{selectedUser.id} ({selectedUser.username})</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: '#8490a5' }}>Phone:</span>
-                <span>{selectedUser.phone}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: '#8490a5' }}>Total Balance:</span>
-                <strong style={{ color: '#22d3ee', fontSize: '14px' }}>{selectedUser.totalBalance} ETB</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: '#8490a5' }}>Total Wagered:</span>
-                <span>{selectedUser.totalWagered || 0} ETB</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#8490a5' }}>Status:</span>
-                <span className={`admin-status ${selectedUser.status}`}>{selectedUser.status}</span>
+            <div className="modal-body">
+              <div className="receipt-box">
+                <div className="receipt-row">
+                  <span className="label">Full Name</span>
+                  <span className="val">{selectedUser.name}</span>
+                </div>
+                <div className="receipt-row">
+                  <span className="label">User ID</span>
+                  <span className="val">#{selectedUser.id}</span>
+                </div>
+                <div className="receipt-row">
+                  <span className="label">Phone</span>
+                  <span className="val">{selectedUser.phone}</span>
+                </div>
+                <div className="receipt-row">
+                  <span className="label">Playable Balance</span>
+                  <span className="val" style={{ color: '#22d3ee' }}>{selectedUser.playableBalance.toLocaleString()} ETB</span>
+                </div>
+                <div className="receipt-row">
+                  <span className="label">Withdrawable Balance</span>
+                  <span className="val" style={{ color: '#4ade80' }}>{selectedUser.withdrawableBalance.toLocaleString()} ETB</span>
+                </div>
+                <div className="receipt-row">
+                  <span className="label">Total Deposited</span>
+                  <span className="val">{selectedUser.totalDeposited.toLocaleString()} ETB</span>
+                </div>
+                <div className="receipt-row">
+                  <span className="label">Total Withdrawn</span>
+                  <span className="val">{selectedUser.totalWithdrawn.toLocaleString()} ETB</span>
+                </div>
+                <div className="receipt-row">
+                  <span className="label">Game Record</span>
+                  <span className="val">{selectedUser.winCount} Wins / {selectedUser.lossCount} Losses</span>
+                </div>
+                <div className="receipt-row">
+                  <span className="label">Account Status</span>
+                  <span className={`pill-badge ${selectedUser.status}`}>{selectedUser.status}</span>
+                </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '14px' }}>
+            <div className="modal-foot">
               <button
-                className={`admin-btn ${selectedUser.status === 'active' ? 'danger' : 'success'}`}
-                onClick={() => handleToggleBlockUser(selectedUser.id)}
+                className={`sm-btn ${selectedUser.status === 'active' ? 'danger' : 'success'}`}
+                onClick={() => handleToggleUserStatus(selectedUser.id)}
               >
-                {selectedUser.status === 'active' ? 'Block Player' : 'Unblock Player'}
+                {selectedUser.status === 'active' ? 'Block Account' : 'Unblock Account'}
               </button>
-              <button className="admin-btn" onClick={() => setSelectedUser(null)}>
+              <button className="sm-btn outline" onClick={() => setSelectedUser(null)}>
                 Close
               </button>
             </div>
@@ -1477,69 +2196,78 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* ── New Promotion Modal ── */}
-      {showNewPromoModal && (
-        <div className="admin-modal-backdrop" onClick={() => setShowNewPromoModal(false)}>
-          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="admin-modal-header">
-              <div className="admin-modal-title">Create Campaign / Promotion</div>
-              <button
-                onClick={() => setShowNewPromoModal(false)}
-                style={{ background: 'none', border: 'none', color: '#8490a5', fontSize: '18px', cursor: 'pointer' }}
-              >
+      {/* =========================================
+          MODAL: CREATE TASK
+         ========================================= */}
+      {showNewTaskModal && (
+        <div className="modal-backdrop" onClick={() => setShowNewTaskModal(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>Create New Player Task</h3>
+              <button className="modal-close" onClick={() => setShowNewTaskModal(false)}>
                 ✕
               </button>
             </div>
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const form = e.target as any;
-                const newP: PromotionItem = {
-                  id: `p-${Date.now().toString().slice(-4)}`,
-                  title: form.title.value,
-                  type: form.type.value,
-                  reward: form.reward.value,
-                  target: form.target.value,
-                  status: 'active',
-                  claimedCount: 0,
-                };
-                setPromotions((prev) => [newP, ...prev]);
-                setShowNewPromoModal(false);
-                showToast(`Campaign ${newP.title} launched`);
-              }}
-            >
-              <div className="admin-input-group">
-                <label>Campaign Title</label>
-                <input name="title" placeholder="e.g. Deposit Match 50%" required />
+            <form onSubmit={handleCreateTask}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Task Title</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Play 10 Bingo Games"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Reward Amount / Description</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. +25 ETB Playable"
+                    value={newTaskReward}
+                    onChange={(e) => setNewTaskReward(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Description</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Task details and instructions for the player..."
+                    value={newTaskDesc}
+                    onChange={(e) => setNewTaskDesc(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Target Group</label>
+                  <select
+                    className="select"
+                    style={{ width: '100%', height: '40px' }}
+                    value={newTaskTarget}
+                    onChange={(e) => setNewTaskTarget(e.target.value)}
+                  >
+                    <option>All Players</option>
+                    <option>New Players</option>
+                    <option>Active Players</option>
+                    <option>VIP Depositors</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="admin-input-group">
-                <label>Type</label>
-                <select name="type" className="admin-select" style={{ width: '100%' }}>
-                  <option value="Deposit Bonus">Deposit Bonus</option>
-                  <option value="Free Spins">Free Cartela / Spins</option>
-                  <option value="Task">Task Reward</option>
-                  <option value="Promo Code">Promo Code</option>
-                </select>
-              </div>
-
-              <div className="admin-input-group">
-                <label>Reward Description</label>
-                <input name="reward" placeholder="e.g. +50 ETB Playable balance" required />
-              </div>
-
-              <div className="admin-input-group">
-                <label>Target Audience</label>
-                <input name="target" defaultValue="All Players" required />
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px' }}>
-                <button type="button" className="admin-btn" onClick={() => setShowNewPromoModal(false)}>
+              <div className="modal-foot">
+                <button type="button" className="sm-btn outline" onClick={() => setShowNewTaskModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="admin-btn primary">
-                  Launch Campaign
+                <button type="submit" className="sm-btn primary">
+                  Save & Launch Task
                 </button>
               </div>
             </form>
@@ -1547,28 +2275,85 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* ── Toast Message ── */}
-      {toastMessage && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '72px',
-            right: '20px',
-            background: '#111827',
-            border: '1px solid #22d3ee',
-            color: '#f8fafc',
-            padding: '10px 18px',
-            borderRadius: '10px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-            fontSize: '12px',
-            fontWeight: 600,
-            zIndex: 1000,
-          }}
-        >
-          ✨ {toastMessage}
+      {/* =========================================
+          MODAL: CREATE PROMO CODE
+         ========================================= */}
+      {showNewPromoModal && (
+        <div className="modal-backdrop" onClick={() => setShowNewPromoModal(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>Generate Promo Code</h3>
+              <button className="modal-close" onClick={() => setShowNewPromoModal(false)}>
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePromo}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Promo Code</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. BINGO50"
+                    value={newPromoCode}
+                    onChange={(e) => setNewPromoCode(e.target.value.toUpperCase())}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Reward / Bonus Value</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. +50 ETB Bonus"
+                    value={newPromoReward}
+                    onChange={(e) => setNewPromoReward(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Max Claims</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={newPromoUses}
+                      onChange={(e) => setNewPromoUses(Number(e.target.value))}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Expiry Date</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={newPromoExpiry}
+                      onChange={(e) => setNewPromoExpiry(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-foot">
+                <button type="button" className="sm-btn outline" onClick={() => setShowNewPromoModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="sm-btn primary">
+                  Generate Code
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
-    </div>
+
+      {/* TOAST FEEDBACK NOTIFICATION */}
+      {toastMessage && <div className="toast">{toastMessage}</div>}
+    </>
   );
 };
 
