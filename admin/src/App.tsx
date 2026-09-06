@@ -398,6 +398,7 @@ export const App: React.FC = () => {
   const [newTaskButtonName, setNewTaskButtonName] = useState<string>('Join Channel');
   const [newTaskRewardAmount, setNewTaskRewardAmount] = useState<number>(50);
   const [newTaskTarget, setNewTaskTarget] = useState<string>('All Players');
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
   // ── Promo Codes State ──
   const [promos, setPromos] = useState<PromoItem[]>([
@@ -1303,7 +1304,7 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="cards-grid">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {tasks
                   .filter((task) => {
                     if (taskFilter === 'telegram') return task.type === 'telegram_join';
@@ -1312,195 +1313,138 @@ export const App: React.FC = () => {
                     if (taskFilter === 'invitation') return task.type === 'invitation';
                     return true;
                   })
-                  .map((task) => (
-                    <div key={task.id} className="item-card">
-                      <div>
-                        <div className="item-card-top">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span
-                              className="pill-badge"
-                              style={{
-                                background:
-                                  task.type === 'telegram_join'
-                                    ? 'rgba(34, 211, 238, 0.12)'
-                                    : task.type === 'deposit_quest'
-                                    ? 'rgba(34, 197, 94, 0.12)'
-                                    : task.type === 'invitation'
-                                    ? 'rgba(167, 139, 250, 0.12)'
-                                    : 'rgba(245, 158, 11, 0.12)',
-                                color:
-                                  task.type === 'telegram_join'
-                                    ? '#22d3ee'
-                                    : task.type === 'deposit_quest'
-                                    ? '#4ade80'
-                                    : task.type === 'invitation'
-                                    ? '#a78bfa'
-                                    : '#fbbf24',
-                              }}
-                            >
-                              {task.type === 'telegram_join'
-                                ? '📢 Telegram Join'
-                                : task.type === 'deposit_quest'
-                                ? '💳 Deposit Quest'
-                                : task.type === 'invitation'
-                                ? '🎟️ Invitation'
-                                : '🎮 Bingo Challenge'}
-                            </span>
-                            <span className={`pill-badge ${task.status}`}>{task.status}</span>
-                          </div>
-                        </div>
+                  .map((task) => {
+                    const isExpanded = expandedTaskId === task.id;
+                    const typeEmoji =
+                      task.type === 'telegram_join' ? '📢'
+                      : task.type === 'deposit_quest' ? '💳'
+                      : task.type === 'invitation' ? '🎟️'
+                      : '🎮';
+                    const accentColor =
+                      task.type === 'telegram_join' ? '#22d3ee'
+                      : task.type === 'deposit_quest' ? '#4ade80'
+                      : task.type === 'invitation' ? '#a78bfa'
+                      : '#fbbf24';
 
-                        <div className="item-card-title" style={{ marginTop: '10px' }}>
-                          {task.title}
-                        </div>
+                    // Type-specific detail label + value
+                    const detailLabel =
+                      task.type === 'telegram_join' ? 'Telegram'
+                      : task.type === 'deposit_quest' ? 'Required'
+                      : task.type === 'bingo_challenge' ? 'Rounds'
+                      : 'Invites';
+                    const detailValue =
+                      task.type === 'telegram_join'
+                        ? (task.telegramLink || '').replace('https://t.me/', '@')
+                      : task.type === 'deposit_quest'
+                        ? `${task.depositAmount || 100} ETB`
+                      : task.type === 'bingo_challenge'
+                        ? `${task.requiredRounds || 3}`
+                      : `${task.invitedCount || 5} Players`;
 
-                        {/* TYPE-SPECIFIC PARAMETER */}
-                        {task.type === 'telegram_join' && task.telegramLink && (
-                          <div
-                            style={{
-                              marginTop: '8px',
-                              padding: '8px 10px',
-                              background: '#111827',
-                              borderRadius: '6px',
-                              border: '1px solid var(--border)',
-                              fontSize: '11px',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                            }}
-                          >
-                            <span style={{ color: '#8995a7' }}>Telegram Link:</span>
-                            <span style={{ color: '#22d3ee', fontWeight: 600, fontFamily: 'monospace' }}>
-                              {task.telegramLink}
-                            </span>
-                          </div>
-                        )}
-
-                        {task.type === 'deposit_quest' && (
-                          <div
-                            style={{
-                              marginTop: '8px',
-                              padding: '8px 10px',
-                              background: '#111827',
-                              borderRadius: '6px',
-                              border: '1px solid var(--border)',
-                              fontSize: '11px',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                            }}
-                          >
-                            <span style={{ color: '#8995a7' }}>Required Deposit:</span>
-                            <span style={{ color: '#4ade80', fontWeight: 700 }}>
-                              {task.depositAmount || 100} ETB
-                            </span>
-                          </div>
-                        )}
-
-                        {task.type === 'bingo_challenge' && (
-                          <div
-                            style={{
-                              marginTop: '8px',
-                              padding: '8px 10px',
-                              background: '#111827',
-                              borderRadius: '6px',
-                              border: '1px solid var(--border)',
-                              fontSize: '11px',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                            }}
-                          >
-                            <span style={{ color: '#8995a7' }}>Required Rounds:</span>
-                            <span style={{ color: '#fbbf24', fontWeight: 700 }}>
-                              {task.requiredRounds || 3} Rounds
-                            </span>
-                          </div>
-                        )}
-
-                        {task.type === 'invitation' && (
-                          <div
-                            style={{
-                              marginTop: '8px',
-                              padding: '8px 10px',
-                              background: '#111827',
-                              borderRadius: '6px',
-                              border: '1px solid var(--border)',
-                              fontSize: '11px',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                            }}
-                          >
-                            <span style={{ color: '#8995a7' }}>Required Invites:</span>
-                            <span style={{ color: '#a78bfa', fontWeight: 700 }}>
-                              {task.invitedCount || 5} Players
-                            </span>
-                          </div>
-                        )}
-
-                        {/* BUTTON NAME BADGE */}
+                    return (
+                      <div
+                        key={task.id}
+                        style={{
+                          background: 'var(--card)',
+                          border: `1px solid ${isExpanded ? accentColor + '55' : 'var(--border)'}`,
+                          borderRadius: '10px',
+                          overflow: 'hidden',
+                          transition: 'border-color 0.2s',
+                        }}
+                      >
+                        {/* ── COLLAPSED ROW ── */}
                         <div
+                          onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
                           style={{
-                            marginTop: '8px',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px',
-                            fontSize: '11px',
-                            color: '#8995a7',
+                            padding: '14px 16px',
+                            cursor: 'pointer',
+                            gap: '12px',
                           }}
                         >
-                          <span>Action Button:</span>
-                          <span
-                            style={{
-                              background: 'rgba(99, 102, 241, 0.15)',
-                              color: '#a5b4fc',
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              fontWeight: 600,
-                            }}
-                          >
-                            {task.buttonName}
-                          </span>
-                        </div>
-                      </div>
+                          {/* Emoji icon */}
+                          <span style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }}>{typeEmoji}</span>
 
-                      <div>
-                        <div className="item-card-meta">
-                          <div>
-                            Reward: <span className="item-reward">{task.rewardAmount} ETB</span>
+                          {/* Title + meta */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: '14px', color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {task.title}
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#8995a7', marginTop: '3px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <span style={{ color: accentColor, fontWeight: 600 }}>{task.rewardAmount} ETB reward</span>
+                              <span>•</span>
+                              <span>{task.completions.toLocaleString()} claimed</span>
+                            </div>
                           </div>
-                          <div>Target: {task.target}</div>
-                          <div style={{ marginLeft: 'auto', color: '#a5b4fc', fontWeight: 600 }}>
-                            {task.completions.toLocaleString()} claimed
-                          </div>
+
+                          {/* Status badge */}
+                          <span className={`pill-badge ${task.status}`} style={{ flexShrink: 0 }}>{task.status}</span>
+
+                          {/* Chevron */}
+                          <span style={{ color: '#8995a7', fontSize: '16px', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', flexShrink: 0 }}>›</span>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                          <button
-                            className={`sm-btn ${task.status === 'active' ? 'danger' : 'success'}`}
-                            style={{ flex: 1 }}
-                            onClick={() => {
-                              setTasks((prev) =>
-                                prev.map((t) =>
-                                  t.id === task.id
-                                    ? { ...t, status: t.status === 'active' ? 'disabled' : 'active' }
-                                    : t
-                                )
-                              );
-                            }}
-                          >
-                            {task.status === 'active' ? 'Disable' : 'Enable'}
-                          </button>
-                          <button
-                            className="sm-btn outline"
-                            onClick={() => {
-                              setTasks((prev) => prev.filter((t) => t.id !== task.id));
-                              showToast('Task removed.');
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </div>
+                        {/* ── EXPANDED DETAIL ── */}
+                        {isExpanded && (
+                          <div style={{ borderTop: '1px solid var(--border)', padding: '16px' }}>
+                            {/* Detail rows */}
+                            {[
+                              { label: 'Reward', value: `${task.rewardAmount} ETB` },
+                              { label: 'Target', value: task.target },
+                              { label: 'Claimed', value: task.completions.toLocaleString() },
+                            ].map(({ label, value }) => (
+                              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                <span style={{ fontSize: '13px', color: '#8995a7' }}>{label}</span>
+                                <span style={{ fontSize: '13px', color: '#e2e8f0', fontWeight: 600 }}>{value}</span>
+                              </div>
+                            ))}
+
+                            {/* Type-specific row */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                              <span style={{ fontSize: '13px', color: '#8995a7' }}>{detailLabel}</span>
+                              <span style={{ fontSize: '13px', color: accentColor, fontWeight: 600, fontFamily: 'monospace' }}>{detailValue}</span>
+                            </div>
+
+                            {/* Button name row */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                              <span style={{ fontSize: '13px', color: '#8995a7' }}>Button</span>
+                              <span style={{ fontSize: '13px', color: '#a5b4fc', fontWeight: 600 }}>{task.buttonName}</span>
+                            </div>
+
+                            {/* Actions */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px', gap: '8px' }}>
+                              <button
+                                className={`sm-btn ${task.status === 'active' ? 'danger' : 'success'}`}
+                                onClick={() => {
+                                  setTasks((prev) =>
+                                    prev.map((t) =>
+                                      t.id === task.id
+                                        ? { ...t, status: t.status === 'active' ? 'disabled' : 'active' }
+                                        : t
+                                    )
+                                  );
+                                }}
+                              >
+                                {task.status === 'active' ? 'Disable' : 'Enable'}
+                              </button>
+                              <button
+                                className="sm-btn outline"
+                                style={{ color: '#f87171', borderColor: '#f8717144' }}
+                                onClick={() => {
+                                  setTasks((prev) => prev.filter((t) => t.id !== task.id));
+                                  setExpandedTaskId(null);
+                                  showToast('Task removed.');
+                                }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             </>
           )}
