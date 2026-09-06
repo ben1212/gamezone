@@ -600,6 +600,7 @@ svg {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(300px, 0.8fr);
   gap: 14px;
+  align-items: start;
 }
 
 .panel {

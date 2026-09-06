@@ -937,286 +937,169 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* GRID */}
+              {/* DASHBOARD CONTENT */}
               <div className="dashboard-grid">
                 {/* FINANCIAL ACTIVITY */}
-                <div>
-                  <div className="panel">
-                    <div className="panel-header">
-                      <div>
-                        <div className="panel-title">Financial Activity</div>
-                        <div className="panel-sub">Deposits vs withdrawals</div>
-                      </div>
-
-                      <select
-                        className="select"
-                        value={chartPeriod}
-                        onChange={(e) => setChartPeriod(e.target.value)}
-                      >
-                        <option>Last 7 days</option>
-                        <option>Last 30 days</option>
-                        <option>Last 90 days</option>
-                      </select>
+                <div className="panel">
+                  <div className="panel-header">
+                    <div>
+                      <div className="panel-title">Financial Activity</div>
+                      <div className="panel-sub">Deposits vs withdrawals</div>
                     </div>
 
-                    <div className="chart-box">
-                      <div className="chart">
-                        <div className="chart-grid">
-                          <span className="chart-line"></span>
-                          <span className="chart-line"></span>
-                          <span className="chart-line"></span>
-                          <span className="chart-line"></span>
-                          <span className="chart-line"></span>
-                        </div>
-
-                        <svg className="chart-svg" viewBox="0 0 700 210" preserveAspectRatio="none">
-                          <defs>
-                            <linearGradient id="area1" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0" stopColor="#22d3ee" stopOpacity=".16" />
-                              <stop offset="1" stopColor="#22d3ee" stopOpacity="0" />
-                            </linearGradient>
-                          </defs>
-
-                          <path
-                            d="M0 145
-                               C35 130 55 142 90 118
-                               S145 90 180 112
-                               S225 150 260 105
-                               S320 80 350 92
-                               S405 65 440 78
-                               S490 118 525 82
-                               S570 45 610 67
-                               S665 40 700 51
-                               L700 210 L0 210 Z"
-                            fill="url(#area1)"
-                          />
-
-                          <path
-                            d="M0 145
-                               C35 130 55 142 90 118
-                               S145 90 180 112
-                               S225 150 260 105
-                               S320 80 350 92
-                               S405 65 440 78
-                               S490 118 525 82
-                               S570 45 610 67
-                               S665 40 700 51"
-                            fill="none"
-                            stroke="#22d3ee"
-                            strokeWidth="3"
-                          />
-
-                          <path
-                            d="M0 170
-                               C45 160 60 168 100 150
-                               S150 130 185 143
-                               S235 175 270 140
-                               S320 120 360 130
-                               S410 105 450 120
-                               S500 150 535 128
-                               S585 100 620 115
-                               S665 85 700 102"
-                            fill="none"
-                            stroke="#6366f1"
-                            strokeWidth="3"
-                          />
-                        </svg>
-
-                        <div className="chart-labels">
-                          <span>Mon</span>
-                          <span>Tue</span>
-                          <span>Wed</span>
-                          <span>Thu</span>
-                          <span>Fri</span>
-                          <span>Sat</span>
-                          <span>Sun</span>
-                        </div>
-                      </div>
-
-                      <div className="chart-legend">
-                        <div className="legend">
-                          <span className="legend-dot deposit-dot"></span>
-                          Deposits
-                        </div>
-
-                        <div className="legend">
-                          <span className="legend-dot withdraw-dot"></span>
-                          Withdrawals
-                        </div>
-                      </div>
-                    </div>
+                    <select
+                      className="select"
+                      value={chartPeriod}
+                      onChange={(e) => setChartPeriod(e.target.value)}
+                    >
+                      <option>Last 7 days</option>
+                      <option>Last 30 days</option>
+                      <option>Last 90 days</option>
+                    </select>
                   </div>
 
-                  {/* RECENT TRANSACTIONS */}
-                  <div className="panel transactions">
-                    <div className="panel-header">
-                      <div>
-                        <div className="panel-title">Recent Transactions</div>
-                        <div className="panel-sub">Latest platform activity</div>
+                  <div className="chart-box">
+                    <div className="chart">
+                      <div className="chart-grid">
+                        <span className="chart-line"></span>
+                        <span className="chart-line"></span>
+                        <span className="chart-line"></span>
+                        <span className="chart-line"></span>
+                        <span className="chart-line"></span>
                       </div>
-                      <button
-                        className="open-btn"
-                        onClick={() => handleNavClick('deposits')}
-                      >
-                        View All
-                      </button>
+
+                      <svg className="chart-svg" viewBox="0 0 700 210" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="area1" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0" stopColor="#22d3ee" stopOpacity=".16" />
+                            <stop offset="1" stopColor="#22d3ee" stopOpacity="0" />
+                          </linearGradient>
+                        </defs>
+
+                        <path
+                          d="M0 145
+                             C35 130 55 142 90 118
+                             S145 90 180 112
+                             S225 150 260 105
+                             S320 80 350 92
+                             S405 65 440 78
+                             S490 118 525 82
+                             S570 45 610 67
+                             S665 40 700 51
+                             L700 210 L0 210 Z"
+                          fill="url(#area1)"
+                        />
+
+                        <path
+                          d="M0 145
+                             C35 130 55 142 90 118
+                             S145 90 180 112
+                             S225 150 260 105
+                             S320 80 350 92
+                             S405 65 440 78
+                             S490 118 525 82
+                             S570 45 610 67
+                             S665 40 700 51"
+                          fill="none"
+                          stroke="#22d3ee"
+                          strokeWidth="3"
+                        />
+
+                        <path
+                          d="M0 170
+                             C45 160 60 168 100 150
+                             S150 130 185 143
+                             S235 175 270 140
+                             S320 120 360 130
+                             S410 105 450 120
+                             S500 150 535 128
+                             S585 100 620 115
+                             S665 85 700 102"
+                          fill="none"
+                          stroke="#6366f1"
+                          strokeWidth="3"
+                        />
+                      </svg>
+
+                      <div className="chart-labels">
+                        <span>Mon</span>
+                        <span>Tue</span>
+                        <span>Wed</span>
+                        <span>Thu</span>
+                        <span>Fri</span>
+                        <span>Sat</span>
+                        <span>Sun</span>
+                      </div>
                     </div>
 
-                    <div>
-                      {transactions.slice(0, 4).map((tx) => (
-                        <div
-                          key={tx.id}
-                          className="transaction"
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => setSelectedTx(tx)}
-                        >
-                          <div className={`tx-icon ${tx.category}`}>
-                            {tx.category === 'deposit' ? (
-                              <svg viewBox="0 0 24 24">
-                                <path d="M12 19V5" />
-                                <path d="m6 11 6-6 6 6" />
-                              </svg>
-                            ) : (
-                              <svg viewBox="0 0 24 24">
-                                <path d="M12 5v14" />
-                                <path d="m18 13-6 6-6-6" />
-                              </svg>
-                            )}
-                          </div>
+                    <div className="chart-legend">
+                      <div className="legend">
+                        <span className="legend-dot deposit-dot"></span>
+                        Deposits
+                      </div>
 
-                          <div className="tx-info">
-                            <div className="tx-name">
-                              {tx.category === 'deposit' ? 'Deposit' : 'Withdrawal'} · #{tx.id}
-                            </div>
-                            <div className="tx-meta">
-                              {tx.username} · {tx.time}
-                            </div>
-                          </div>
-
-                          <div className={`tx-amount ${tx.category}`}>
-                            {tx.category === 'deposit' ? `+${tx.amount}` : `-${tx.amount}`} ETB
-                            <div className="tx-status" style={{ textTransform: 'capitalize' }}>
-                              {tx.status}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                      <div className="legend">
+                        <span className="legend-dot withdraw-dot"></span>
+                        Withdrawals
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* PAYMENT QUEUE & QUICK STATUS */}
-                <div>
-                  <div className="panel">
-                    <div className="panel-header">
-                      <div>
-                        <div className="panel-title">Payment Queue</div>
-                        <div className="panel-sub">Requests awaiting review</div>
-                      </div>
+                {/* RECENT TRANSACTIONS */}
+                <div className="panel transactions" style={{ marginTop: 0 }}>
+                  <div className="panel-header">
+                    <div>
+                      <div className="panel-title">Recent Transactions</div>
+                      <div className="panel-sub">Latest platform activity</div>
                     </div>
-
-                    <div className="queue">
-                      <div
-                        className="queue-row"
-                        onClick={() => {
-                          setDepositFilter('pending');
-                          handleNavClick('deposits');
-                        }}
-                      >
-                        <div className="queue-icon deposit">
-                          <svg viewBox="0 0 24 24">
-                            <path d="M12 19V5" />
-                            <path d="m6 11 6-6 6 6" />
-                          </svg>
-                        </div>
-
-                        <div className="queue-info">
-                          <div className="queue-name">Deposits</div>
-                          <div className="queue-meta">Payment requests</div>
-                        </div>
-
-                        <div className="pending">{pendingDepositsCount} pending</div>
-                      </div>
-
-                      <div
-                        className="queue-row"
-                        onClick={() => {
-                          setWithdrawFilter('pending');
-                          handleNavClick('withdrawals');
-                        }}
-                      >
-                        <div className="queue-icon withdraw">
-                          <svg viewBox="0 0 24 24">
-                            <path d="M12 5v14" />
-                            <path d="m18 13-6 6-6-6" />
-                          </svg>
-                        </div>
-
-                        <div className="queue-info">
-                          <div className="queue-name">Withdrawals</div>
-                          <div className="queue-meta">Withdrawal requests</div>
-                        </div>
-
-                        <div className="pending">{pendingWithdrawalsCount} pending</div>
-                      </div>
-                    </div>
+                    <button
+                      className="open-btn"
+                      onClick={() => handleNavClick('deposits')}
+                    >
+                      View All
+                    </button>
                   </div>
 
-                  {/* QUICK STATUS */}
-                  <div className="panel transactions">
-                    <div className="panel-header">
-                      <div>
-                        <div className="panel-title">System Status</div>
-                        <div className="panel-sub">Current service state</div>
+                  <div>
+                    {transactions.slice(0, 5).map((tx) => (
+                      <div
+                        key={tx.id}
+                        className="transaction"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => setSelectedTx(tx)}
+                      >
+                        <div className={`tx-icon ${tx.category}`}>
+                          {tx.category === 'deposit' ? (
+                            <svg viewBox="0 0 24 24">
+                              <path d="M12 19V5" />
+                              <path d="m6 11 6-6 6 6" />
+                            </svg>
+                          ) : (
+                            <svg viewBox="0 0 24 24">
+                              <path d="M12 5v14" />
+                              <path d="m18 13-6 6-6-6" />
+                            </svg>
+                          )}
+                        </div>
+
+                        <div className="tx-info">
+                          <div className="tx-name">
+                            {tx.category === 'deposit' ? 'Deposit' : 'Withdrawal'} · #{tx.id}
+                          </div>
+                          <div className="tx-meta">
+                            {tx.username} · {tx.time}
+                          </div>
+                        </div>
+
+                        <div className={`tx-amount ${tx.category}`}>
+                          {tx.category === 'deposit' ? `+${tx.amount}` : `-${tx.amount}`} ETB
+                          <div className="tx-status" style={{ textTransform: 'capitalize' }}>
+                            {tx.status}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-
-                    <div className="queue">
-                      <div className="queue-row">
-                        <div className="queue-icon deposit">
-                          <svg viewBox="0 0 24 24">
-                            <path d="M20 6 9 17l-5-5" />
-                          </svg>
-                        </div>
-
-                        <div className="queue-info">
-                          <div className="queue-name">API Services</div>
-                          <div className="queue-meta">All systems operational</div>
-                        </div>
-
-                        <div className="up">Online</div>
-                      </div>
-
-                      <div className="queue-row">
-                        <div className="queue-icon deposit">
-                          <svg viewBox="0 0 24 24">
-                            <path d="M20 6 9 17l-5-5" />
-                          </svg>
-                        </div>
-
-                        <div className="queue-info">
-                          <div className="queue-name">Database</div>
-                          <div className="queue-meta">Connection healthy</div>
-                        </div>
-
-                        <div className="up">Healthy</div>
-                      </div>
-
-                      <div className="queue-row">
-                        <div className="queue-icon deposit">
-                          <svg viewBox="0 0 24 24">
-                            <path d="M20 6 9 17l-5-5" />
-                          </svg>
-                        </div>
-
-                        <div className="queue-info">
-                          <div className="queue-name">Telegram Bot</div>
-                          <div className="queue-meta">Connected</div>
-                        </div>
-
-                        <div className="up">Online</div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               </div>
