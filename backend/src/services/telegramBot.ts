@@ -1,6 +1,6 @@
-import { createRequire } from 'module';
+﻿import { createRequire } from 'module';
 import dotenv from 'dotenv';
-import { db } from '../data/db.js';
+import { UserService } from './userService.js';
 
 dotenv.config();
 
@@ -12,7 +12,8 @@ const WEB_APP_URL = process.env.WEB_APP_URL || process.env.CLIENT_URL || 'https:
 
 interface UserSession {
   lastBotMessageId?: number;
-  step?: 'idle' | 'withdraw_amount' | 'withdraw_account' | 'withdraw_confirm' | 'deposit_amount' | 'deposit_sms';
+  step?: 'idle' | 'awaiting_contact' | 'withdraw_amount' | 'withdraw_account' | 'withdraw_confirm' | 'deposit_amount' | 'deposit_sms';
+  referredBy?: string;
   withdrawAmount?: number;
   withdrawAccount?: string;
   withdrawMethod?: string;
@@ -45,7 +46,7 @@ export function initTelegramBot(): any {
     const bot = new TelegramBot(BOT_TOKEN, { polling: true });
     botInstance = bot;
 
-    console.log('🤖 Telegram Bot Service Initializing...');
+    console.log('🤖 Telegram Bot Service Initializing with Supabase database...');
 
     // Delete any old webhook to prevent polling conflicts
     bot
@@ -57,7 +58,7 @@ export function initTelegramBot(): any {
         console.warn('⚠️ deleteWebHook warning:', err?.message || err);
       });
 
-    // Set the Web App Chat Menu Button (Persistent Button on Bottom Left of Chat)
+    // Set the Web App Chat Menu Button
     bot
       .setChatMenuButton({
         menu_button: {
@@ -73,7 +74,7 @@ export function initTelegramBot(): any {
         console.warn('⚠️ Could not set chat menu button:', err?.message || err);
       });
 
-    // ── Permanent Navigation Reply Keyboard (Always sits underneath) ──
+    // ── Permanent Navigation Reply Keyboard ──
     const getPermanentReplyKeyboard = () => ({
       keyboard: [
         [
@@ -99,8 +100,21 @@ export function initTelegramBot(): any {
       is_persistent: true,
     });
 
+    // ── Registration Contact Keyboard ──
+    const getContactKeyboard = () => ({
+      keyboard: [
+        [
+          {
+            text: '📱 ስልክ ቁጥር አጋራ (Share Contact)',
+            request_contact: true,
+          },
+        ],
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: true,
+    });
+
     // ── Single Stateful Message Editor ──
-    // Edits the active message in place instead of creating new messages
     const editOrSendState = async (
       chatId: number,
       text: string,
@@ -118,22 +132,19 @@ export function initTelegramBot(): any {
           });
           return;
         } catch (err: any) {
-          // If message is identical, ignore; if message was deleted/cannot be edited, create new
           if (err?.message?.includes('message is not modified')) {
             return;
           }
-          // Fall through to send a fresh state message
         }
       }
 
-      // Send new message if no message exists or edit failed
       const sentMsg = await bot.sendMessage(chatId, text, {
         reply_markup: replyMarkup,
       });
       session.lastBotMessageId = sentMsg.message_id;
     };
 
-    // Helper: Safely delete user input message to keep the chat spotless
+    // Helper: Safely delete user input message
     const tryDeleteUserMsg = async (chatId: number, msgId: number) => {
       try {
         await bot.deleteMessage(chatId, msgId);
@@ -142,25 +153,60 @@ export function initTelegramBot(): any {
       }
     };
 
+    // ── Prompt User Registration ──
+    const promptRegistration = async (chatId: number, refCode?: string) => {
+      const session = getSession(chatId);
+      session.step = 'awaiting_contact';
+      if (refCode) {
+        session.referredBy = refCode;
+      }
+
+      const text =
+        `🎮 እንኳን ወደ GameZone በደህና መጡ!\n` +
+        `Welcome to GameZone! 👋\n\n` +
+        `⚠️ ስርዓቱን ለመጠቀም እና ጨዋታዎችን ለመጫወት እባክዎ መጀመሪያ ይመዝገቡ።\n` +
+        `ለመመዝገብ ከታች ያለውን "📱 ስልክ ቁጥር አጋራ (Share Contact)" የሚለውን ቁልፍ ይጫኑ።\n\n` +
+        `To use the system and play games, registration is required.\n` +
+        `Please tap "📱 Share Contact" below to verify your phone number and start playing!`;
+
+      await bot.sendMessage(chatId, text, {
+        reply_markup: getContactKeyboard(),
+      });
+    };
+
     // ── Content Renderers ──
 
     const showHome = async (chatId: number, user?: any) => {
       const session = getSession(chatId);
       session.step = 'idle';
 
+      // Ensure user is registered in Supabase
+      const dbUser = await UserService.getUserByTelegramId(String(chatId));
+      if (!dbUser) {
+        await promptRegistration(chatId);
+        return;
+      }
+
+      if (dbUser.is_banned) {
+        await bot.sendMessage(chatId, '⚠️ አካውንትዎ ታግዷል። እባክዎ የድጋፍ ሰጪዎችን ያነጋግሩ።\n(Your account has been suspended. Please contact support.)');
+        return;
+      }
+
+      // Sync username or name if changed
       if (user) {
         const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Player';
-        const username = user.username ? `@${user.username}` : '@player';
-        db.updateUser({
-          telegramId: String(user.id),
-          name: fullName,
-          username: username,
-        });
+        const username = user.username ? user.username.replace('@', '') : '';
+        if (dbUser.username !== username || dbUser.first_name !== fullName) {
+          await UserService.updateUser(String(chatId), {
+            username,
+            first_name: fullName,
+          });
+        }
       }
 
       const text =
         `🎮 GameZone\n\n` +
-        `Welcome to GameZone 👋\n` +
+        `Welcome to GameZone, ${dbUser.first_name || 'Player'} 👋\n` +
         `Your games, wallet, and account — all in one place.\n\n` +
         `Main menu`;
 
@@ -189,7 +235,6 @@ export function initTelegramBot(): any {
         });
         session.lastBotMessageId = sent.message_id;
 
-        // Also add the inline buttons
         await bot.editMessageReplyMarkup(
           { inline_keyboard: inlineKeyboard },
           { chat_id: chatId, message_id: sent.message_id }
@@ -267,17 +312,13 @@ export function initTelegramBot(): any {
       const session = getSession(chatId);
       const amount = session.depositAmount || 100;
 
-      // Add pending deposit transaction
-      db.addTransaction({
-        id: `tx-d-${Date.now()}`,
-        userId: String(chatId),
-        title: `Deposit via ${session.depositMethod === 'cbe' ? 'CBE' : 'Telebirr'}`,
-        meta: `Ref: ${smsText.slice(0, 30)}`,
+      // Add pending deposit to Supabase
+      await UserService.createDeposit({
+        telegram_id: String(chatId),
         amount: amount,
-        currency: 'ETB',
-        type: 'positive',
+        method: session.depositMethod === 'cbe' ? 'cbe' : 'telebirr',
+        sms_text: smsText,
         status: 'pending',
-        timestamp: new Date().toISOString(),
       });
 
       session.step = 'idle';
@@ -299,10 +340,12 @@ export function initTelegramBot(): any {
       session.withdrawAmount = undefined;
       session.withdrawAccount = undefined;
 
-      const balances = db.getBalances();
+      const dbUser = await UserService.getUserByTelegramId(String(chatId));
+      const withdrawable = dbUser?.withdrawable_balance || 0;
+
       const text =
         `💸 ገንዘብ ማውጣት\n\n` +
-        `Withdrawable: ${balances.withdrawable.toFixed(0)} ETB\n\n` +
+        `Withdrawable: ${withdrawable.toFixed(0)} ETB\n\n` +
         `የሚያወጡትን መጠን ያስገቡ።`;
 
       await editOrSendState(chatId, text);
@@ -310,23 +353,24 @@ export function initTelegramBot(): any {
 
     const handleWithdrawAmount = async (chatId: number, amount: number) => {
       const session = getSession(chatId);
-      const balances = db.getBalances();
+      const dbUser = await UserService.getUserByTelegramId(String(chatId));
+      const withdrawable = dbUser?.withdrawable_balance || 0;
 
       if (isNaN(amount) || amount < 50) {
         const text =
           `💸 ገንዘብ ማውጣት\n\n` +
           `❌ ዝቅተኛው የማውጣት መጠን 50 ETB ነው።\n\n` +
-          `Withdrawable: ${balances.withdrawable.toFixed(0)} ETB\n\n` +
+          `Withdrawable: ${withdrawable.toFixed(0)} ETB\n\n` +
           `የሚያወጡትን መጠን ያስገቡ:`;
         await editOrSendState(chatId, text);
         return;
       }
 
-      if (amount > balances.withdrawable) {
+      if (amount > withdrawable) {
         const text =
           `💸 ገንዘብ ማውጣት\n\n` +
           `❌ በቂ Withdrawable ቀሪ ሂሳብ የለዎትም።\n` +
-          `Available: ${balances.withdrawable.toFixed(0)} ETB\n\n` +
+          `Available: ${withdrawable.toFixed(0)} ETB\n\n` +
           `የሚያወጡትን መጠን ያስገቡ:`;
         await editOrSendState(chatId, text);
         return;
@@ -377,35 +421,30 @@ export function initTelegramBot(): any {
       const account = session.withdrawAccount || '';
       const method = session.withdrawMethod || 'Telebirr';
 
-      const balances = db.getBalances();
-      if (amount > balances.withdrawable) {
+      const dbUser = await UserService.getUserByTelegramId(String(chatId));
+      const withdrawable = dbUser?.withdrawable_balance || 0;
+
+      if (amount > withdrawable) {
         await editOrSendState(
           chatId,
-          `❌ በቂ ቀሪ ሂሳብ የለዎትም።\nAvailable: ${balances.withdrawable.toFixed(0)} ETB`
+          `❌ በቂ ቀሪ ሂሳብ የለዎትም።\nAvailable: ${withdrawable.toFixed(0)} ETB`
         );
         session.step = 'idle';
         return;
       }
 
-      // Deduct balance & create transaction
-      const newWithdrawable = Math.max(0, balances.withdrawable - amount);
-      const newTotal = Math.max(0, balances.total - amount);
-      db.updateBalances({
-        ...balances,
-        total: newTotal,
-        withdrawable: newWithdrawable,
+      // Deduct balance from Supabase & create withdrawal record
+      const newWithdrawable = Math.max(0, withdrawable - amount);
+      await UserService.updateUser(String(chatId), {
+        withdrawable_balance: newWithdrawable,
       });
 
-      db.addTransaction({
-        id: `tx-w-${Date.now()}`,
-        userId: String(chatId),
-        title: `Withdrawal via ${method}`,
-        meta: `To: ${account}`,
-        amount: -amount,
-        currency: 'ETB',
-        type: 'negative',
+      await UserService.createWithdrawal({
+        telegram_id: String(chatId),
+        amount: amount,
+        method: method,
+        account_number: account,
         status: 'pending',
-        timestamp: new Date().toISOString(),
       });
 
       session.step = 'idle';
@@ -435,12 +474,16 @@ export function initTelegramBot(): any {
       const session = getSession(chatId);
       session.step = 'idle';
 
-      const balances = db.getBalances();
+      const dbUser = await UserService.getUserByTelegramId(String(chatId));
+      const playable = dbUser?.balance || 0;
+      const withdrawable = dbUser?.withdrawable_balance || 0;
+      const total = playable + withdrawable;
+
       const text =
         `👛 ቀሪ ሂሳብ\n\n` +
-        `Total: ${balances.total.toFixed(0)} ETB\n` +
-        `Withdrawable: ${balances.withdrawable.toFixed(0)} ETB\n` +
-        `Playable: ${balances.playable.toFixed(0)} ETB`;
+        `Total: ${total.toFixed(0)} ETB\n` +
+        `Withdrawable: ${withdrawable.toFixed(0)} ETB\n` +
+        `Playable: ${playable.toFixed(0)} ETB`;
 
       const inlineKeyboard = [
         [
@@ -457,18 +500,19 @@ export function initTelegramBot(): any {
       const session = getSession(chatId);
       session.step = 'idle';
 
-      const user = db.getUser();
+      const dbUser = await UserService.getUserByTelegramId(String(chatId));
       const me = await bot.getMe();
       const botUsername = me.username || 'bingox2019_bot';
-      const refLink = `https://t.me/${botUsername}?start=ref_${user.telegramId || user.id}`;
+      const refCode = dbUser?.referral_code || `GZ${String(chatId).slice(-6)}`;
+      const refLink = `https://t.me/${botUsername}?start=ref_${refCode}`;
       const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(
         'GameZone ላይ ይቀላቀሉ እና ይጫወቱ! 🎮💰'
       )}`;
 
       const text =
         `🎁 ግብዣ\n\n` +
-        `Invited: ${user.totalReferrals || 0}\n` +
-        `Earned: ${(user.referralBonusETB || 0).toFixed(0)} ETB`;
+        `የእርስዎ መለያ ኮድ: ${refCode}\n` +
+        `ጓደኞችዎን ይጋብዙ እና ተጨማሪ ቦነስ ያግኙ!`;
 
       const inlineKeyboard = [
         [{ text: '🎁 INVITE', url: shareUrl }],
@@ -477,23 +521,23 @@ export function initTelegramBot(): any {
       await editOrSendState(chatId, text, inlineKeyboard);
     };
 
-    // Profile: ONLY Profile Info, no balance or play button!
     const showProfile = async (chatId: number) => {
       const session = getSession(chatId);
       session.step = 'idle';
 
-      const user = db.getUser();
-      const phoneDisplay = user.phone ? user.phone : '+251...';
-      const idDisplay = user.telegramId ? user.telegramId : user.id;
+      const dbUser = await UserService.getUserByTelegramId(String(chatId));
+      const nameDisplay = dbUser?.first_name || 'Player';
+      const usernameDisplay = dbUser?.username ? `@${dbUser.username}` : '@player';
+      const phoneDisplay = dbUser?.phone || '+251...';
+      const idDisplay = dbUser?.telegram_id || String(chatId);
 
       const text =
         `👤 መገለጫ\n\n` +
-        `Name: ${user.name || 'Bini'}\n` +
-        `Username: ${user.username || '@username'}\n` +
+        `Name: ${nameDisplay}\n` +
+        `Username: ${usernameDisplay}\n` +
         `Phone: ${phoneDisplay}\n` +
         `ID: #${idDisplay}`;
 
-      // Clean profile info ONLY, no extra buttons underneath
       await editOrSendState(chatId, text);
     };
 
@@ -514,9 +558,91 @@ export function initTelegramBot(): any {
       await editOrSendState(chatId, text, inlineKeyboard);
     };
 
+    // ── Core Contact Handler ──
+    const handleContactRegistration = async (msg: any) => {
+      const chatId = msg.chat.id;
+      const contact = msg.contact;
+      if (!contact) return;
+
+      const senderId = msg.from?.id;
+      const contactUserId = contact.user_id;
+
+      // Validate contact ownership (prevent spoofing)
+      if (contactUserId && senderId && contactUserId !== senderId) {
+        await bot.sendMessage(
+          chatId,
+          '❌ እባክዎ የራስዎን ስልክ ቁጥር ያጋሩ።\n(Please share your own phone number from your device.)',
+          {
+            reply_markup: getContactKeyboard(),
+          }
+        );
+        return;
+      }
+
+      let phone = contact.phone_number.trim();
+      if (!phone.startsWith('+')) {
+        if (phone.startsWith('251')) phone = '+' + phone;
+        else if (phone.startsWith('0')) phone = '+251' + phone.slice(1);
+        else phone = '+251' + phone;
+      }
+
+      const fullName = [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(' ') || contact.first_name || 'Player';
+      const username = msg.from?.username ? msg.from.username.replace('@', '') : '';
+      const session = getSession(chatId);
+      const refCode = 'GZ' + String(chatId).slice(-6);
+
+      // Check if user already exists
+      let dbUser = await UserService.getUserByTelegramId(String(chatId));
+
+      if (!dbUser) {
+        dbUser = await UserService.registerUser({
+          telegram_id: String(chatId),
+          phone: phone,
+          username: username,
+          first_name: fullName,
+          referral_code: refCode,
+        });
+
+        if (!dbUser) {
+          await bot.sendMessage(chatId, '⚠️ Registration error. Please tap the button again or try /start.', {
+            reply_markup: getContactKeyboard(),
+          });
+          return;
+        }
+      }
+
+      session.step = 'idle';
+
+      const successText =
+        `🎉 እንኳን ደስ አለዎት! ምዝገባዎ በተሳካ ሁኔታ ተጠናቋል!\n` +
+        `Registration Completed Successfully!\n\n` +
+        `👤 ስም: ${fullName}\n` +
+        `📱 ስልክ: ${phone}\n` +
+        `🆔 ID: #${chatId}\n\n` +
+        `🎮 ጨዋታውን ለመጀመር "PLAY" የሚለውን ይጫኑ!`;
+
+      await bot.sendMessage(chatId, successText, {
+        reply_markup: getPermanentReplyKeyboard(),
+      });
+
+      await showHome(chatId, msg.from);
+    };
+
+    // ── Contact Sharing Registration Event ──
+    bot.on('contact', async (msg: any) => {
+      await handleContactRegistration(msg);
+    });
+
     // ── Command & Reply Keyboard Message Router ──
     bot.on('message', async (msg: any) => {
+      // If contact was sent as a message attachment
+      if (msg.contact) {
+        await handleContactRegistration(msg);
+        return;
+      }
+
       if (!msg.text) return;
+
       const chatId = msg.chat.id;
       const text = msg.text.trim();
       const session = getSession(chatId);
@@ -526,11 +652,33 @@ export function initTelegramBot(): any {
       try {
         // 1. Slash commands & Menu resets
         if (text.startsWith('/start') || text.startsWith('/menu') || text.toLowerCase() === 'start') {
+          const parts = text.split(' ');
+          const refParam = parts.length > 1 ? parts[1].replace('ref_', '') : undefined;
+
+          // Check if user exists in Supabase
+          const dbUser = await UserService.getUserByTelegramId(String(chatId));
+          if (!dbUser) {
+            await promptRegistration(chatId, refParam);
+            return;
+          }
+
           await showHome(chatId, msg.from);
           return;
         }
 
-        // 2. Reply Keyboard Navigation (Always edits the message in place)
+        // Check registration for all other actions
+        const dbUser = await UserService.getUserByTelegramId(String(chatId));
+        if (!dbUser) {
+          await promptRegistration(chatId);
+          return;
+        }
+
+        if (dbUser.is_banned) {
+          await bot.sendMessage(chatId, '⚠️ አካውንትዎ ታግዷል። (Your account is suspended.)');
+          return;
+        }
+
+        // 2. Reply Keyboard Navigation
         if (text === '💰 DEPOSIT' || text.toLowerCase().includes('deposit') || text.includes('ገንዘብ ለመጨመር')) {
           await tryDeleteUserMsg(chatId, msg.message_id);
           await showDeposit(chatId);
@@ -611,6 +759,12 @@ export function initTelegramBot(): any {
 
         await bot.answerCallbackQuery(query.id);
 
+        const dbUser = await UserService.getUserByTelegramId(String(chatId));
+        if (!dbUser) {
+          await promptRegistration(chatId);
+          return;
+        }
+
         if (data === 'nav_home') {
           await showHome(chatId, query.from);
         } else if (data === 'nav_deposit') {
@@ -656,7 +810,7 @@ export function initTelegramBot(): any {
       }
     });
 
-    console.log('✅ Telegram Bot successfully started & listening for commands!');
+    console.log('✅ Telegram Bot successfully started & listening for commands with Supabase integration!');
     return bot;
   } catch (error: any) {
     console.error('❌ Failed to initialize Telegram Bot:', error?.message || error);

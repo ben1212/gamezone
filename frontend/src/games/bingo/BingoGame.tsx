@@ -27,15 +27,8 @@ export const BingoGame: React.FC<BingoGameProps> = ({
   // Active tickets purchased by user: cartellaIndex (1-200)
   const [myCartellaIndices, setMyCartellaIndices] = useState<number[]>([]);
 
-  // Other players' tickets in the room (multiplayer simulation)
-  const [roomTickets, setRoomTickets] = useState<Array<{ cartellaIndex: number; userId: string }>>([
-    { cartellaIndex: 7, userId: 'almaz_eth' },
-    { cartellaIndex: 23, userId: 'dawit_99' },
-    { cartellaIndex: 45, userId: 'selam_b' },
-    { cartellaIndex: 88, userId: 'kassaye' },
-    { cartellaIndex: 112, userId: 'tigist_m' },
-    { cartellaIndex: 164, userId: 'yosef_k' },
-  ]);
+  // Active tickets purchased by players in the room
+  const [roomTickets, setRoomTickets] = useState<Array<{ cartellaIndex: number; userId: string }>>([]);
 
   const drawIntervalRef = useRef<any>(null);
 
@@ -94,7 +87,7 @@ export const BingoGame: React.FC<BingoGameProps> = ({
     if (drawIntervalRef.current) clearInterval(drawIntervalRef.current);
 
     drawIntervalRef.current = setInterval(() => {
-      if (ballIndex >= pool.length || ballIndex >= 35) {
+      if (ballIndex >= pool.length || ballIndex >= 45) {
         // Round finishes
         endRound(drawn);
         return;
@@ -115,13 +108,6 @@ export const BingoGame: React.FC<BingoGameProps> = ({
             declareWinner(user.username || 'Player', cIdx, totalPrize, true);
             return;
           }
-        }
-
-        // Random chance for room player to win around ball 18-28
-        if (ballIndex >= 22 && Math.random() < 0.25 && roomTickets.length > 0) {
-          const lucky = roomTickets[Math.floor(Math.random() * roomTickets.length)];
-          declareWinner(lucky.userId, lucky.cartellaIndex, totalPrize, false);
-          return;
         }
       }
     }, 3200);
@@ -157,7 +143,7 @@ export const BingoGame: React.FC<BingoGameProps> = ({
     setWinnerData(winPayload);
 
     // If user won, credit balance!
-    if (isUser) {
+    if (isUser && prize > 0) {
       const newPlayable = balances.playable + prize;
       const newTotal = balances.withdrawable + newPlayable;
       const winTx: Transaction = {
@@ -186,8 +172,20 @@ export const BingoGame: React.FC<BingoGameProps> = ({
       clearInterval(drawIntervalRef.current);
       drawIntervalRef.current = null;
     }
-    const defaultWinner = roomTickets[0] || { userId: 'almaz_eth', cartellaIndex: 7 };
-    declareWinner(defaultWinner.userId, defaultWinner.cartellaIndex, totalPrize, false);
+    if (myCartellaIndices.length > 0) {
+      for (const cIdx of myCartellaIndices) {
+        const grid = generateCartellaGrid(cIdx);
+        if (checkGridBingo(grid, _drawn)) {
+          declareWinner(user.username || 'Player', cIdx, totalPrize, true);
+          return;
+        }
+      }
+    }
+    // No winner in this round
+    setWinnerData({
+      winners: [],
+      splitPrizePerWinner: 0,
+    });
   };
 
   // Reset back to lobby for next round
@@ -203,14 +201,7 @@ export const BingoGame: React.FC<BingoGameProps> = ({
     setLastBall(null);
     setWinnerData(null);
     setMyCartellaIndices([]); // Reset user's tickets for next round
-
-    // Regenerate room players with slight variations
-    setRoomTickets([
-      { cartellaIndex: Math.floor(Math.random() * 50) + 1, userId: 'almaz_eth' },
-      { cartellaIndex: Math.floor(Math.random() * 50) + 51, userId: 'dawit_99' },
-      { cartellaIndex: Math.floor(Math.random() * 50) + 101, userId: 'selam_b' },
-      { cartellaIndex: Math.floor(Math.random() * 50) + 151, userId: 'kassaye' },
-    ]);
+    setRoomTickets([]);
   };
 
   // ── CARTELA SELECTION & TICKET PURCHASES ──

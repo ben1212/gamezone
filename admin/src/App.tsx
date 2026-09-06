@@ -158,41 +158,7 @@ export const App: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
 
   // ── Tasks State ──
-  const [tasks, setTasks] = useState<TaskItem[]>([
-    {
-      id: 't-1',
-      type: 'telegram_join',
-      title: 'Join our Telegram Channel',
-      telegramLink: 'https://t.me/GameZoneETH',
-      buttonName: 'Join Channel',
-      rewardAmount: 50,
-      target: 'All Players',
-      status: 'active',
-      completions: 3410,
-    },
-    {
-      id: 't-2',
-      type: 'deposit_quest',
-      title: 'Deposit 100 ETB',
-      depositAmount: 100,
-      buttonName: 'Deposit Now',
-      rewardAmount: 20,
-      target: 'All Players',
-      status: 'active',
-      completions: 840,
-    },
-    {
-      id: 't-3',
-      type: 'bingo_challenge',
-      title: 'Play 3 Bingo Rounds',
-      requiredRounds: 3,
-      buttonName: 'Play Bingo',
-      rewardAmount: 30,
-      target: 'All Players',
-      status: 'active',
-      completions: 420,
-    },
-  ]);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [taskFilter, setTaskFilter] = useState<'all' | 'telegram' | 'deposit' | 'bingo' | 'invitation'>('all');
   const [showNewTaskModal, setShowNewTaskModal] = useState<boolean>(false);
   const [newTaskType, setNewTaskType] = useState<TaskType>('telegram_join');
@@ -207,44 +173,7 @@ export const App: React.FC = () => {
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
   // ── Promo Codes State ──
-  const [promos, setPromos] = useState<PromoItem[]>([
-    {
-      id: 'p-1',
-      code: 'WELCOME100',
-      reward: '+100 ETB Bonus on 200 ETB Deposit',
-      maxUses: 1000,
-      usedCount: 742,
-      expiry: '30 Sep 2026',
-      status: 'active',
-    },
-    {
-      id: 'p-2',
-      code: 'BINGO2026',
-      reward: '2 Free VIP Cartelas',
-      maxUses: 500,
-      usedCount: 318,
-      expiry: '15 Sep 2026',
-      status: 'active',
-    },
-    {
-      id: 'p-3',
-      code: 'TELEGRAM15',
-      reward: '+15 ETB Free Playable',
-      maxUses: 2000,
-      usedCount: 1980,
-      expiry: '31 Dec 2026',
-      status: 'active',
-    },
-    {
-      id: 'p-4',
-      code: 'EXPIRED50',
-      reward: '+50 ETB Bonus',
-      maxUses: 200,
-      usedCount: 200,
-      expiry: '01 Sep 2026',
-      status: 'expired',
-    },
-  ]);
+  const [promos, setPromos] = useState<PromoItem[]>([]);
   const [showNewPromoModal, setShowNewPromoModal] = useState<boolean>(false);
   const [newPromoCode, setNewPromoCode] = useState<string>('');
   const [newPromoReward, setNewPromoReward] = useState<string>('');
@@ -252,26 +181,7 @@ export const App: React.FC = () => {
   const [newPromoExpiry, setNewPromoExpiry] = useState<string>('30 Sep 2026');
 
   // ── Broadcast State ──
-  const [broadcasts, setBroadcasts] = useState<BroadcastItem[]>([
-    {
-      id: 'bc-1',
-      title: '🎉 Weekend Mega Bingo Jackpot Active!',
-      message: 'Join the 50,000 ETB Mega Pool in Bingo Live Room #108. Double rewards for the top 5 cartelas!',
-      target: 'All Players',
-      sentAt: 'Yesterday, 18:30',
-      recipients: 1284,
-      status: 'delivered',
-    },
-    {
-      id: 'bc-2',
-      title: '⚡ Instant Telebirr Deposits Online',
-      message: 'Fast automated deposit verification is active. Deposits take under 30 seconds to credit.',
-      target: 'All Players',
-      sentAt: '03 Sep 2026',
-      recipients: 1190,
-      status: 'delivered',
-    },
-  ]);
+  const [broadcasts, setBroadcasts] = useState<BroadcastItem[]>([]);
   const [bcTitle, setBcTitle] = useState<string>('');
   const [bcMessage, setBcMessage] = useState<string>('');
   const [bcTarget, setBcTarget] = useState<string>('All Players');

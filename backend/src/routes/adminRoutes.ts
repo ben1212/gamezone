@@ -1,91 +1,12 @@
-import { Router, Request, Response } from 'express';
-import { db } from '../data/db.js';
+﻿import { Router, Request, Response } from 'express';
+import { supabase } from '../services/supabase.js';
+import { UserService } from '../services/userService.js';
 
 export const adminRoutes = Router();
 
 // Hardcoded Admin Credentials
 const ADMIN_USER = 'admin';
 const ADMIN_PASS = 'password123';
-
-// Mock in-memory state for games, broadcasts, affiliates, staff, and system logs
-let systemGames = [
-  {
-    id: 'bingo',
-    name: 'Bingo Live',
-    icon: '🎱',
-    status: 'active',
-    activePlayers: 184,
-    totalRoundsToday: 342,
-    todayTurnover: 76400,
-    rakePercentage: 10,
-    rooms: [
-      { id: 'room-01', name: 'Standard Room', stake: 10, minPlayers: 2, maxPlayers: 50, activeTickets: 28, status: 'active', prizePool: 252 },
-      { id: 'room-02', name: 'High Roller', stake: 50, minPlayers: 2, maxPlayers: 30, activeTickets: 14, status: 'active', prizePool: 630 },
-      { id: 'room-03', name: 'VIP Jackpot', stake: 100, minPlayers: 2, maxPlayers: 20, activeTickets: 8, status: 'active', prizePool: 720 },
-    ],
-  },
-  {
-    id: 'keno',
-    name: 'Keno Turbo',
-    icon: '🎯',
-    status: 'active',
-    activePlayers: 42,
-    totalRoundsToday: 820,
-    todayTurnover: 38200,
-    rakePercentage: 8,
-    roundIntervalSeconds: 60,
-    rtpPercentage: 94.5,
-    minBet: 5,
-    maxBet: 1000,
-  },
-  {
-    id: 'ludo',
-    name: 'Ludo Arena',
-    icon: '🎲',
-    status: 'active',
-    activePlayers: 21,
-    totalRoundsToday: 115,
-    todayTurnover: 18900,
-    rakePercentage: 8,
-    activeTables: 6,
-    minStake: 20,
-    maxStake: 500,
-  },
-];
-
-let systemBroadcasts = [
-  {
-    id: 'bc-01',
-    title: '🔥 Weekend 50,000 ETB Bingo Tournament',
-    message: 'Join the Grand Weekend Bingo Tournament! Over 50,000 ETB in guaranteed prizes. Top 10 cartelas win cash instantly!',
-    target: 'All Players',
-    sentCount: 18492,
-    status: 'sent',
-    timestamp: 'Yesterday at 18:00',
-  },
-  {
-    id: 'bc-02',
-    title: '⚡ Fast Telebirr & CBE Payouts Active',
-    message: 'Telebirr and CBE Birr instant deposits & withdrawals are active 24/7 with zero delay.',
-    target: 'Active Players',
-    sentCount: 6820,
-    status: 'sent',
-    timestamp: '2 days ago',
-  },
-];
-
-let systemStaff = [
-  { id: 'A001', name: 'Super Admin', username: 'admin', role: 'Super Admin', email: 'admin@gamezone.et', status: 'active', lastLogin: 'Just now' },
-  { id: 'A002', name: 'Yonas Finance', username: 'yonas_cashier', role: 'Finance Admin', email: 'yonas@gamezone.et', status: 'active', lastLogin: '2h ago' },
-  { id: 'A003', name: 'Helen Support', username: 'helen_ops', role: 'Support Agent', email: 'helen@gamezone.et', status: 'active', lastLogin: '5h ago' },
-];
-
-let auditLogs = [
-  { id: 'log-1', admin: 'Super Admin (A001)', action: 'Approved withdrawal #WD-10918 (450 ETB)', ip: '196.188.24.12', timestamp: '09:01' },
-  { id: 'log-2', admin: 'Support Agent (A003)', action: 'Updated status of Player #102955 to Restricted', ip: '196.188.24.15', timestamp: '08:43' },
-  { id: 'log-3', admin: 'Finance Admin (A002)', action: 'Verified & approved Telebirr deposit #DP-20840 (1,000 ETB)', ip: '196.188.24.14', timestamp: '08:15' },
-  { id: 'log-4', admin: 'Super Admin (A001)', action: 'Updated Bingo Room #02 stake configuration to 50 ETB', ip: '196.188.24.12', timestamp: 'Yesterday' },
-];
 
 // 1. Admin Login
 adminRoutes.post('/login', (req: Request, res: Response) => {
@@ -99,7 +20,7 @@ adminRoutes.post('/login', (req: Request, res: Response) => {
         username: 'admin',
         name: 'Super Admin',
         role: 'Super Admin',
-        avatar: 'BA',
+        avatar: 'A',
       },
     });
   }
@@ -111,415 +32,232 @@ adminRoutes.post('/login', (req: Request, res: Response) => {
 });
 
 // 2. Overview & Live KPIs
-adminRoutes.get('/overview', (_req: Request, res: Response) => {
-  const transactions = db.getTransactions();
-  const balances = db.getBalances();
-  const user = db.getUser();
+adminRoutes.get('/overview', async (_req: Request, res: Response) => {
+  try {
+    const { data: users } = await supabase.from('users').select('*');
+    const { data: deposits } = await supabase.from('deposits').select('*');
+    const { data: withdrawals } = await supabase.from('withdrawals').select('*');
 
-  const totalDeposits = transactions
-    .filter((t) => t.type === 'positive' && t.status === 'completed')
-    .reduce((sum, t) => sum + t.amount, 86420);
+    const totalUsers = users?.length || 0;
+    const completedDeposits = deposits?.filter((d: any) => d.status === 'completed') || [];
+    const completedWithdrawals = withdrawals?.filter((w: any) => w.status === 'completed') || [];
 
-  const totalWithdrawals = transactions
-    .filter((t) => t.type === 'negative')
-    .reduce((sum, t) => sum + Math.abs(t.amount), 41850);
+    const todayDeposits = completedDeposits.reduce((sum: number, d: any) => sum + Number(d.amount || 0), 0);
+    const todayWithdrawals = completedWithdrawals.reduce((sum: number, w: any) => sum + Number(w.amount || 0), 0);
+    const platformProfit = todayDeposits - todayWithdrawals;
 
-  const pendingCount = transactions.filter((t) => t.status === 'pending').length;
+    const pendingDeposits = deposits?.filter((d: any) => d.status === 'pending') || [];
+    const pendingWithdrawals = withdrawals?.filter((w: any) => w.status === 'pending') || [];
+    const pendingTransactions = pendingDeposits.length + pendingWithdrawals.length;
 
-  res.json({
-    success: true,
-    data: {
-      totalUsers: 18492,
-      onlineNow: 247,
-      todayDeposits: totalDeposits,
-      todayWithdrawals: totalWithdrawals,
-      pendingTransactions: pendingCount,
-      treasuryBalance: balances.total,
-      totalGGR: 133500,
-      platformProfit: 14200,
-      recentActivity: [
-        { id: '1', title: 'Deposit approved', detail: 'Player #10284 · 500 ETB · Telebirr', time: '2m ago', type: 'green' },
-        { id: '2', title: 'Withdrawal requested', detail: 'Player #08412 · 1,200 ETB · CBE Birr', time: '4m ago', type: 'yellow' },
-        { id: '3', title: 'New player registered', detail: `@${user.username || 'abebe_21'} via Telegram`, time: '7m ago', type: 'green' },
-        { id: '4', title: 'Bingo Live Room #01 Won', detail: 'Player #19021 won 450 ETB pot', time: '9m ago', type: 'green' },
-      ],
-    },
-  });
+    res.json({
+      success: true,
+      data: {
+        totalUsers,
+        onlineNow: totalUsers > 0 ? 1 : 0,
+        todayDeposits,
+        todayWithdrawals,
+        pendingTransactions,
+        treasuryBalance: platformProfit,
+        platformProfit,
+        recentActivity: [],
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-// 3. Transactions & Approval
-adminRoutes.get('/transactions', (_req: Request, res: Response) => {
-  const transactions = db.getTransactions();
+// 3. Transactions List (Combined Deposits + Withdrawals)
+adminRoutes.get('/transactions', async (_req: Request, res: Response) => {
+  try {
+    const { data: deposits } = await supabase.from('deposits').select('*').order('id', { ascending: false });
+    const { data: withdrawals } = await supabase.from('withdrawals').select('*').order('id', { ascending: false });
+    const { data: users } = await supabase.from('users').select('*');
 
-  const defaultList = [
-    {
-      id: 'DP-20841',
-      userId: '10284',
-      playerName: 'Abebe T.',
-      username: '@abebe_21',
-      phone: '+251911002233',
-      title: 'Deposit via Telebirr',
-      meta: 'SMS: 9A8B7C · 0911002233',
-      amount: 500,
-      currency: 'ETB',
-      type: 'positive',
-      method: 'Telebirr',
-      status: 'pending',
-      timestamp: '09:18',
-    },
-    {
-      id: 'DP-20840',
-      userId: '102941',
-      playerName: 'Mekdes K.',
-      username: '@mekdes7',
-      phone: '+251922334455',
-      title: 'Deposit via Telebirr',
-      meta: 'SMS: 7X8Y9Z · 0922334455',
-      amount: 1000,
-      currency: 'ETB',
-      type: 'positive',
-      method: 'Telebirr',
-      status: 'approved',
-      timestamp: '09:12',
-    },
-    {
-      id: 'WD-10921',
-      userId: '102955',
-      playerName: 'Daniel A.',
-      username: '@dani_11',
-      phone: '+251933445566',
-      title: 'Withdrawal to CBE',
-      meta: 'Acc: 1000987654321',
-      amount: -1200,
-      currency: 'ETB',
-      type: 'negative',
-      method: 'CBE Birr',
-      status: 'pending',
-      timestamp: '09:07',
-    },
-    {
-      id: 'DP-20838',
-      userId: '102999',
-      playerName: 'Hana M.',
-      username: '@hana22',
-      phone: '+251955667788',
-      title: 'Deposit via Telebirr',
-      meta: 'Invalid SMS format',
-      amount: 300,
-      currency: 'ETB',
-      type: 'positive',
-      method: 'Telebirr',
-      status: 'rejected',
-      timestamp: '08:54',
-    },
-  ];
+    const userMap = new Map<string, any>();
+    users?.forEach((u: any) => {
+      userMap.set(String(u.telegram_id), u);
+    });
 
-  const allTxs = [...transactions, ...defaultList];
+    const txList: any[] = [];
 
-  res.json({
-    success: true,
-    data: allTxs,
-  });
+    deposits?.forEach((d: any) => {
+      const u = userMap.get(String(d.telegram_id));
+      txList.push({
+        id: `DP-${d.id}`,
+        userId: d.telegram_id,
+        playerName: u?.first_name || 'Player',
+        username: u?.username ? `@${u.username}` : '@player',
+        phone: u?.phone || '',
+        category: 'deposit',
+        method: d.method === 'cbe' ? 'CBE Birr' : 'Telebirr',
+        smsRef: d.sms_text || '',
+        amount: Number(d.amount),
+        currency: 'ETB',
+        type: 'positive',
+        status: d.status || 'pending',
+        time: d.created_at ? new Date(d.created_at).toLocaleTimeString() : 'Just now',
+      });
+    });
+
+    withdrawals?.forEach((w: any) => {
+      const u = userMap.get(String(w.telegram_id));
+      txList.push({
+        id: `WD-${w.id}`,
+        userId: w.telegram_id,
+        playerName: u?.first_name || 'Player',
+        username: u?.username ? `@${u.username}` : '@player',
+        phone: u?.phone || '',
+        accountNumber: w.account_number,
+        category: 'withdrawal',
+        method: w.method || 'Telebirr',
+        amount: Number(w.amount),
+        currency: 'ETB',
+        type: 'negative',
+        status: w.status || 'pending',
+        time: w.created_at ? new Date(w.created_at).toLocaleTimeString() : 'Just now',
+      });
+    });
+
+    res.json({
+      success: true,
+      data: txList,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // 4. Approve Transaction
-adminRoutes.post('/transactions/:id/approve', (req: Request, res: Response) => {
+adminRoutes.post('/transactions/:id/approve', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { amount } = req.body;
 
-  if (amount && Number(amount) > 0) {
-    const balances = db.getBalances();
-    db.updateBalances({
-      ...balances,
-      total: balances.total + Number(amount),
-      playable: balances.playable + Number(amount),
+  try {
+    if (id.startsWith('DP-')) {
+      const depId = id.replace('DP-', '');
+      const { data: dep } = await supabase.from('deposits').select('*').eq('id', depId).single();
+      if (dep) {
+        await supabase.from('deposits').update({ status: 'completed' }).eq('id', depId);
+        // Credit player playable balance & set has_deposited = true
+        const { data: user } = await supabase.from('users').select('balance').eq('telegram_id', dep.telegram_id).single();
+        if (user) {
+          await supabase.from('users').update({
+            balance: Number(user.balance || 0) + Number(dep.amount || 0),
+            has_deposited: true,
+          }).eq('telegram_id', dep.telegram_id);
+        }
+      }
+    } else if (id.startsWith('WD-')) {
+      const wdId = id.replace('WD-', '');
+      await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', wdId);
+    }
+
+    res.json({
+      success: true,
+      message: `Transaction ${id} approved`,
+      status: 'completed',
     });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
   }
-
-  auditLogs.unshift({
-    id: `log-${Date.now()}`,
-    admin: 'Super Admin (A001)',
-    action: `Approved transaction #${id} (${amount || ''} ETB)`,
-    ip: '196.188.24.12',
-    timestamp: 'Just now',
-  });
-
-  res.json({
-    success: true,
-    message: `Transaction ${id} successfully approved`,
-    transactionId: id,
-    status: 'approved',
-  });
 });
 
 // 5. Reject Transaction
-adminRoutes.post('/transactions/:id/reject', (req: Request, res: Response) => {
+adminRoutes.post('/transactions/:id/reject', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { reason } = req.body;
 
-  auditLogs.unshift({
-    id: `log-${Date.now()}`,
-    admin: 'Super Admin (A001)',
-    action: `Rejected transaction #${id} (${reason || 'Unverified proof'})`,
-    ip: '196.188.24.12',
-    timestamp: 'Just now',
-  });
+  try {
+    if (id.startsWith('DP-')) {
+      const depId = id.replace('DP-', '');
+      await supabase.from('deposits').update({ status: 'rejected' }).eq('id', depId);
+    } else if (id.startsWith('WD-')) {
+      const wdId = id.replace('WD-', '');
+      const { data: wd } = await supabase.from('withdrawals').select('*').eq('id', wdId).single();
+      if (wd) {
+        await supabase.from('withdrawals').update({ status: 'rejected' }).eq('id', wdId);
+        // Refund withdrawable balance back to player
+        const { data: user } = await supabase.from('users').select('withdrawable_balance').eq('telegram_id', wd.telegram_id).single();
+        if (user) {
+          await supabase.from('users').update({
+            withdrawable_balance: Number(user.withdrawable_balance || 0) + Number(wd.amount || 0),
+          }).eq('telegram_id', wd.telegram_id);
+        }
+      }
+    }
 
-  res.json({
-    success: true,
-    message: `Transaction ${id} rejected: ${reason || 'Unverified receipt'}`,
-    transactionId: id,
-    status: 'rejected',
-  });
+    res.json({
+      success: true,
+      message: `Transaction ${id} rejected (${reason || 'Unverified proof'})`,
+      status: 'rejected',
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-// 6. Users List & Deep Profile
-adminRoutes.get('/users', (_req: Request, res: Response) => {
-  const user = db.getUser();
-  const balances = db.getBalances();
+// 6. Users List
+adminRoutes.get('/users', async (_req: Request, res: Response) => {
+  try {
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('id', { ascending: false });
 
-  const usersList = [
-    {
-      id: user.telegramId || '102938',
-      name: user.name || 'Bini Eyoel',
-      username: user.username || '@bini',
-      phone: user.phone || '+251911223344',
-      totalBalance: balances.total || 2450,
-      playableBalance: balances.playable || 1800,
-      withdrawableBalance: balances.withdrawable || 650,
-      totalDeposited: 12500,
-      totalWithdrawn: 8400,
-      totalWagered: 45200,
-      winCount: 42,
-      lossCount: 38,
-      status: 'active',
-      joinedDate: 'Sep 03',
-      lastActive: 'Just now',
-      invitedBy: '#08912 (@gamezone_king)',
-      referralCount: user.totalReferrals || 12,
-      referralEarnings: user.referralBonusETB || 85,
-    },
-    {
-      id: '102941',
-      name: 'Mekdes K.',
-      username: '@mekdes7',
-      phone: '+251922334455',
-      totalBalance: 820,
-      playableBalance: 500,
-      withdrawableBalance: 320,
-      totalDeposited: 4200,
-      totalWithdrawn: 3100,
-      totalWagered: 18400,
-      winCount: 18,
-      lossCount: 22,
-      status: 'active',
-      joinedDate: 'Sep 02',
-      lastActive: '12m ago',
-      invitedBy: '#102938 (@bini)',
-      referralCount: 4,
-      referralEarnings: 30,
-    },
-    {
-      id: '102955',
-      name: 'Daniel A.',
-      username: '@dani_11',
-      phone: '+251933445566',
-      totalBalance: 3100,
-      playableBalance: 1200,
-      withdrawableBalance: 1900,
-      totalDeposited: 18000,
-      totalWithdrawn: 14000,
-      totalWagered: 89000,
-      winCount: 74,
-      lossCount: 65,
-      status: 'restricted',
-      joinedDate: 'Aug 29',
-      lastActive: '1h ago',
-      invitedBy: 'Direct',
-      referralCount: 0,
-      referralEarnings: 0,
-    },
-    {
-      id: '102988',
-      name: 'Yosef T.',
-      username: '@yosef_99',
-      phone: '+251944556677',
-      totalBalance: 4500,
-      playableBalance: 2000,
-      withdrawableBalance: 2500,
-      totalDeposited: 22000,
-      totalWithdrawn: 16500,
-      totalWagered: 114000,
-      winCount: 95,
-      lossCount: 88,
-      status: 'active',
-      joinedDate: 'Aug 25',
-      lastActive: '3h ago',
-      invitedBy: '#102938 (@bini)',
-      referralCount: 19,
-      referralEarnings: 140,
-    },
-  ];
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
 
-  res.json({
-    success: true,
-    data: usersList,
-  });
+    const formatted = (users || []).map((u: any) => ({
+      id: String(u.telegram_id || u.id),
+      name: u.first_name || 'Player',
+      username: u.username ? `@${u.username}` : '@player',
+      phone: u.phone || '',
+      playableBalance: Number(u.balance || 0),
+      withdrawableBalance: Number(u.withdrawable_balance || 0),
+      totalDeposited: 0,
+      totalWithdrawn: 0,
+      totalWagered: 0,
+      winCount: 0,
+      lossCount: 0,
+      status: u.is_banned ? 'blocked' : 'active',
+      joinedDate: u.created_at ? new Date(u.created_at).toLocaleDateString() : 'Just now',
+      lastActive: 'Online',
+    }));
+
+    res.json({
+      success: true,
+      data: formatted,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // 7. Update User Status / Balance
-adminRoutes.put('/users/:id', (req: Request, res: Response) => {
+adminRoutes.put('/users/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { status, balanceAdjustment, reason } = req.body;
+  const { status, balanceAdjustment } = req.body;
 
-  if (balanceAdjustment) {
-    const balances = db.getBalances();
-    db.updateBalances({
-      ...balances,
-      total: Math.max(0, balances.total + Number(balanceAdjustment)),
-      playable: Math.max(0, balances.playable + Number(balanceAdjustment)),
+  try {
+    const isBanned = status === 'blocked';
+    const updates: any = { is_banned: isBanned };
+
+    if (balanceAdjustment && Number(balanceAdjustment) !== 0) {
+      const { data: user } = await supabase.from('users').select('balance').eq('telegram_id', id).single();
+      if (user) {
+        updates.balance = Math.max(0, Number(user.balance || 0) + Number(balanceAdjustment));
+      }
+    }
+
+    await supabase.from('users').update(updates).eq('telegram_id', id);
+
+    res.json({
+      success: true,
+      message: `User #${id} updated successfully`,
     });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
   }
-
-  auditLogs.unshift({
-    id: `log-${Date.now()}`,
-    admin: 'Super Admin (A001)',
-    action: `Updated Player #${id}: status=${status || 'unchanged'}, balanceAdjust=${balanceAdjustment || 0} ETB (${reason || 'Admin memo'})`,
-    ip: '196.188.24.12',
-    timestamp: 'Just now',
-  });
-
-  res.json({
-    success: true,
-    message: `User #${id} updated successfully`,
-    userId: id,
-    status: status || 'active',
-  });
-});
-
-// 8. Games Control & Room Configuration
-adminRoutes.get('/games', (_req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: systemGames,
-  });
-});
-
-adminRoutes.post('/games/:gameId/toggle', (req: Request, res: Response) => {
-  const { gameId } = req.params;
-  const { status } = req.body;
-
-  systemGames = systemGames.map((g) => (g.id === gameId ? { ...g, status: status || (g.status === 'active' ? 'paused' : 'active') } : g));
-
-  auditLogs.unshift({
-    id: `log-${Date.now()}`,
-    admin: 'Super Admin (A001)',
-    action: `Changed ${gameId} game status to ${status || 'toggled'}`,
-    ip: '196.188.24.12',
-    timestamp: 'Just now',
-  });
-
-  res.json({
-    success: true,
-    message: `Game ${gameId} status updated`,
-    data: systemGames,
-  });
-});
-
-adminRoutes.post('/games/bingo/rooms', (req: Request, res: Response) => {
-  const { name, stake, minPlayers, maxPlayers } = req.body;
-  const newRoom = {
-    id: `room-${Date.now().toString().slice(-4)}`,
-    name: name || 'Custom Room',
-    stake: Number(stake) || 20,
-    minPlayers: Number(minPlayers) || 2,
-    maxPlayers: Number(maxPlayers) || 40,
-    activeTickets: 0,
-    status: 'active',
-    prizePool: 0,
-  };
-
-  const bingoGame = systemGames.find((g) => g.id === 'bingo');
-  if (bingoGame && bingoGame.rooms) {
-    bingoGame.rooms.push(newRoom);
-  }
-
-  res.json({
-    success: true,
-    message: 'New Bingo room created',
-    data: newRoom,
-  });
-});
-
-// 9. Telegram Broadcast Center
-adminRoutes.get('/broadcasts', (_req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: systemBroadcasts,
-  });
-});
-
-adminRoutes.post('/broadcasts', (req: Request, res: Response) => {
-  const { title, message, target } = req.body;
-  const newBroadcast = {
-    id: `bc-${Date.now().toString().slice(-4)}`,
-    title: title || 'Announcement',
-    message: message || '',
-    target: target || 'All Players',
-    sentCount: target === 'Active Players' ? 6820 : 18492,
-    status: 'sent',
-    timestamp: 'Just now',
-  };
-
-  systemBroadcasts.unshift(newBroadcast);
-
-  auditLogs.unshift({
-    id: `log-${Date.now()}`,
-    admin: 'Super Admin (A001)',
-    action: `Sent Telegram broadcast: "${title}" to ${target}`,
-    ip: '196.188.24.12',
-    timestamp: 'Just now',
-  });
-
-  res.json({
-    success: true,
-    message: `Broadcast message sent to ${newBroadcast.sentCount} Telegram users`,
-    data: newBroadcast,
-  });
-});
-
-// 10. Audit Logs & Staff Management
-adminRoutes.get('/logs', (_req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: auditLogs,
-  });
-});
-
-adminRoutes.get('/staff', (_req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: systemStaff,
-  });
-});
-
-adminRoutes.post('/staff', (req: Request, res: Response) => {
-  const { name, username, role, email } = req.body;
-  const newMember = {
-    id: `A00${systemStaff.length + 1}`,
-    name: name || 'Admin User',
-    username: username || 'new_admin',
-    role: role || 'Support Agent',
-    email: email || 'admin@gamezone.et',
-    status: 'active',
-    lastLogin: 'Never',
-  };
-
-  systemStaff.push(newMember);
-
-  res.json({
-    success: true,
-    message: `New team member ${name} added`,
-    data: newMember,
-  });
 });
