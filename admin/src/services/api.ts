@@ -181,4 +181,99 @@ export const adminApi = {
       return null;
     }
   },
+
+  // Dynamic Tasks
+  getTasks: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/tasks`);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  createTask: async (taskData: any) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(taskData),
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  updateTask: async (id: string, taskData: any) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/tasks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(taskData),
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  deleteTask: async (id: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/tasks/${id}`, {
+        method: 'DELETE',
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  // Promo Codes
+  getPromos: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/promos`);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  createPromo: async (promoData: any) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/promos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(promoData),
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  updatePromo: async (id: string, promoData: any) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/promos/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(promoData),
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  deletePromo: async (id: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/promos/${id}`, {
+        method: 'DELETE',
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
 };
+

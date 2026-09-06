@@ -207,13 +207,28 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (!isAuthenticated) return;
     adminApi.getTransactions().then((res) => {
-      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res?.success && Array.isArray(res.data)) {
         setTransactions(res.data);
       }
     });
     adminApi.getUsers().then((res) => {
-      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res?.success && Array.isArray(res.data)) {
         setUsers(res.data);
+      }
+    });
+    adminApi.getTasks().then((res) => {
+      if (res?.success && Array.isArray(res.data)) {
+        setTasks(res.data);
+      }
+    });
+    adminApi.getPromos().then((res) => {
+      if (res?.success && Array.isArray(res.data)) {
+        setPromos(res.data);
+      }
+    });
+    adminApi.getBroadcasts().then((res) => {
+      if (res?.success && Array.isArray(res.data)) {
+        setBroadcasts(res.data);
       }
     });
   }, [isAuthenticated]);
@@ -224,39 +239,49 @@ export const App: React.FC = () => {
 
   // ── Handlers for Transactions ──
   const handleApproveTx = (tx: TransactionItem) => {
+    adminApi.approveTransaction(tx.id, tx.amount).then((res) => {
+      if (res?.success) {
+        showToast(
+          tx.category === 'deposit'
+            ? `Deposit #${tx.id} approved & +${tx.amount} ETB credited!`
+            : `Withdrawal #${tx.id} approved & marked as sent!`
+        );
+      }
+    });
     setTransactions((prev) =>
       prev.map((t) => (t.id === tx.id ? { ...t, status: 'completed' } : t))
     );
     setSelectedTx(null);
-    showToast(
-      tx.category === 'deposit'
-        ? `Deposit #${tx.id} approved & +${tx.amount} ETB credited!`
-        : `Withdrawal #${tx.id} approved & marked as sent!`
-    );
   };
 
   const handleRejectTx = (tx: TransactionItem) => {
+    adminApi.rejectTransaction(tx.id, rejectReason).then((res) => {
+      if (res?.success) {
+        showToast(`Transaction #${tx.id} rejected (${rejectReason}).`);
+      }
+    });
     setTransactions((prev) =>
       prev.map((t) => (t.id === tx.id ? { ...t, status: 'rejected' } : t))
     );
     setSelectedTx(null);
-    showToast(`Transaction #${tx.id} rejected (${rejectReason}).`);
   };
 
   const handleToggleUserStatus = (userId: string) => {
+    const targetUser = users.find((u) => u.id === userId);
+    const nextStatus = targetUser?.status === 'active' ? 'blocked' : 'active';
+
+    adminApi.updateUser(userId, { status: nextStatus }).then((res) => {
+      if (res?.success) {
+        showToast(`Player ${targetUser?.username || userId} is now ${nextStatus.toUpperCase()}`);
+      }
+    });
+
     setUsers((prev) =>
-      prev.map((u) => {
-        if (u.id === userId) {
-          const nextStatus = u.status === 'active' ? 'blocked' : 'active';
-          showToast(`Player ${u.username} is now ${nextStatus.toUpperCase()}`);
-          return { ...u, status: nextStatus };
-        }
-        return u;
-      })
+      prev.map((u) => (u.id === userId ? { ...u, status: nextStatus } : u))
     );
     if (selectedUser && selectedUser.id === userId) {
       setSelectedUser((prev) =>
-        prev ? { ...prev, status: prev.status === 'active' ? 'blocked' : 'active' } : null
+        prev ? { ...prev, status: nextStatus } : null
       );
     }
   };
@@ -265,14 +290,14 @@ export const App: React.FC = () => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
 
-    const newTask: TaskItem = {
+    const newTaskData = {
       id: `t-${Date.now()}`,
       type: newTaskType,
       title: newTaskTitle.trim(),
       buttonName: newTaskButtonName.trim() || 'Claim Reward',
       rewardAmount: newTaskRewardAmount,
       target: newTaskTarget,
-      status: 'active',
+      status: 'active' as const,
       completions: 0,
       telegramLink: newTaskType === 'telegram_join' ? newTaskTelegramLink.trim() : undefined,
       depositAmount: newTaskType === 'deposit_quest' ? newTaskDepositAmount : undefined,
@@ -280,52 +305,76 @@ export const App: React.FC = () => {
       invitedCount: newTaskType === 'invitation' ? newTaskInvitedCount : undefined,
     };
 
-    setTasks([newTask, ...tasks]);
+    adminApi.createTask(newTaskData).then((res) => {
+      if (res?.success) {
+        showToast(`Task "${newTaskData.title}" saved live to database!`);
+      }
+    });
+
+    setTasks([newTaskData, ...tasks]);
     setShowNewTaskModal(false);
-    showToast(`Task "${newTask.title}" saved!`);
   };
 
   const handleCreatePromo = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPromoCode.trim() || !newPromoReward.trim()) return;
-    const newPromo: PromoItem = {
-      id: `p-${Date.now()}`,
+
+    const newPromoData = {
       code: newPromoCode.trim().toUpperCase(),
       reward: newPromoReward.trim(),
       maxUses: newPromoUses,
-      usedCount: 0,
       expiry: newPromoExpiry,
-      status: 'active',
     };
-    setPromos([newPromo, ...promos]);
+
+    adminApi.createPromo(newPromoData).then((res) => {
+      if (res?.success && res.data) {
+        showToast(`Promo Code "${res.data.code}" generated live in database!`);
+        setPromos((prev) => [
+          {
+            id: String(res.data.id),
+            code: res.data.code,
+            reward: res.data.reward,
+            maxUses: Number(res.data.max_uses || newPromoUses),
+            usedCount: 0,
+            expiry: res.data.expiry || newPromoExpiry,
+            status: 'active',
+          },
+          ...prev,
+        ]);
+      }
+    });
+
     setShowNewPromoModal(false);
     setNewPromoCode('');
     setNewPromoReward('');
-    showToast(`Promo Code "${newPromo.code}" generated!`);
   };
 
   const handleSendBroadcast = (e: React.FormEvent) => {
     e.preventDefault();
     if (!bcTitle.trim() || !bcMessage.trim()) return;
-    const newBroadcast: BroadcastItem = {
-      id: `bc-${Date.now()}`,
+
+    showToast('Sending broadcast to all registered Telegram users...');
+
+    adminApi.sendBroadcast({
       title: bcTitle.trim(),
       message: bcMessage.trim(),
       target: bcTarget,
-      sentAt: 'Just now',
-      recipients: bcTarget === 'All Players' ? 1284 : 450,
-      status: 'delivered',
-    };
-    setBroadcasts([newBroadcast, ...broadcasts]);
+    }).then((res) => {
+      if (res?.success && res.data) {
+        setBroadcasts((prev) => [res.data, ...prev]);
+        showToast(`Broadcast delivered to ${res.result?.sentCount || 0} players!`);
+      }
+    });
+
     setBcTitle('');
     setBcMessage('');
-    showToast(`Broadcast sent to ${newBroadcast.recipients} players!`);
   };
 
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     showToast('Platform settings saved and applied.');
   };
+
 
   // ── Render Login Screen if not authenticated ──
   if (!isAuthenticated) {

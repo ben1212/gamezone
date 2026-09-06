@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { WalletBalances, Transaction } from '../types';
 import { tg } from '../services/telegram';
+import { api, DynamicTaskItem } from '../services/api';
 
 interface TaskPageProps {
   balances?: WalletBalances;
@@ -33,7 +34,7 @@ export const TaskPage: React.FC<TaskPageProps> = ({
   balances,
   onUpdateBalances,
   onShowToast,
-  onOpenDeposit: _onOpenDeposit,
+  onOpenDeposit,
 }) => {
   // ── Daily Streak State ──
   const [streakData, setStreakData] = useState<DailyStreakData>(() => {
@@ -58,6 +59,19 @@ export const TaskPage: React.FC<TaskPageProps> = ({
 
   const [timeRemainingStr, setTimeRemainingStr] = useState<string>('');
   const [canClaimStreak, setCanClaimStreak] = useState<boolean>(true);
+
+  // ── Dynamic Tasks State ──
+  const [tasks, setTasks] = useState<DynamicTaskItem[]>([]);
+  const [claimingTaskId, setClaimingTaskId] = useState<string | null>(null);
+  const [visitedLinks, setVisitedLinks] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    api.getTasks().then((data) => {
+      if (data && Array.isArray(data)) {
+        setTasks(data);
+      }
+    });
+  }, []);
 
   // Calculate cooldown and countdown timer
   useEffect(() => {
@@ -155,6 +169,92 @@ export const TaskPage: React.FC<TaskPageProps> = ({
       onShowToast(
         `🎉 Claimed +${rewardAmount} ETB! Day ${streakData.streakDay} streak collected!`
       );
+    }
+  };
+
+  // ── Handle Dynamic Task Action / Claim ──
+  const handleTaskAction = async (task: DynamicTaskItem) => {
+    if (task.claimed) return;
+
+    // Telegram join task
+    if (task.type === 'telegram_join' && task.telegramLink && !visitedLinks.has(task.id)) {
+      tg.hapticImpact('medium');
+      if (tg.webApp?.openTelegramLink) {
+        tg.webApp.openTelegramLink(task.telegramLink);
+      } else {
+        window.open(task.telegramLink, '_blank');
+      }
+      setVisitedLinks((prev) => new Set(prev).add(task.id));
+      if (onShowToast) {
+        onShowToast('Return here and click Claim to receive your bonus!');
+      }
+      return;
+    }
+
+    // Deposit quest
+    if (task.type === 'deposit_quest' && onOpenDeposit && !visitedLinks.has(task.id)) {
+      onOpenDeposit();
+      setVisitedLinks((prev) => new Set(prev).add(task.id));
+      return;
+    }
+
+    // Claim
+    setClaimingTaskId(task.id);
+    tg.hapticImpact('heavy');
+
+    const res = await api.claimTask(task.id);
+    setClaimingTaskId(null);
+
+    if (res?.success) {
+      tg.hapticNotification('success');
+      setTasks((prev) =>
+        prev.map((t) => (t.id === task.id ? { ...t, claimed: true, completions: t.completions + 1 } : t))
+      );
+
+      if (balances && onUpdateBalances && res.rewardAmount) {
+        const updated: WalletBalances = {
+          ...balances,
+          playable: (balances.playable || 0) + res.rewardAmount,
+          total: (balances.total || 0) + res.rewardAmount,
+        };
+
+        const taskTx: Transaction = {
+          id: `tx-task-${Date.now()}`,
+          title: task.title,
+          meta: `Task Reward (${res.rewardAmount} ETB)`,
+          amount: res.rewardAmount,
+          currency: 'ETB',
+          type: 'positive',
+          icon: '🎁',
+          timestamp: 'Just now',
+        };
+
+        onUpdateBalances(updated, taskTx);
+      }
+
+      if (onShowToast) {
+        onShowToast(res.message || `🎉 Claimed +${task.rewardAmount} ETB reward!`);
+      }
+    } else {
+      tg.hapticNotification('error');
+      if (onShowToast) {
+        onShowToast(res?.message || 'Could not claim task. Please check requirements.');
+      }
+    }
+  };
+
+  const getTaskIcon = (type: string) => {
+    switch (type) {
+      case 'telegram_join':
+        return '📢';
+      case 'deposit_quest':
+        return '💳';
+      case 'bingo_challenge':
+        return '🎱';
+      case 'invitation':
+        return '👥';
+      default:
+        return '🎯';
     }
   };
 
@@ -390,29 +490,116 @@ export const TaskPage: React.FC<TaskPageProps> = ({
             Missions & Quests
           </h2>
           <div style={{ fontSize: '11px', color: '#818cf8', fontWeight: 600 }}>
-            Automated instant rewards
+            {tasks.length > 0 ? `${tasks.filter((t) => !t.claimed).length} Available` : 'Automated rewards'}
           </div>
         </div>
 
-        <div
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: '14px',
-            padding: '28px 16px',
-            textAlign: 'center',
-            color: '#8995a7',
-          }}
-        >
-          <div style={{ fontSize: '28px', marginBottom: '8px' }}>🎯</div>
-          <div style={{ fontWeight: 600, color: '#e2e8f0', fontSize: '14px', marginBottom: '4px' }}>No Active Tasks</div>
-          <div style={{ fontSize: '12px' }}>Check back soon for new special quests and rewards!</div>
-        </div>
+        {tasks.length === 0 ? (
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: '14px',
+              padding: '28px 16px',
+              textAlign: 'center',
+              color: '#8995a7',
+            }}
+          >
+            <div style={{ fontSize: '28px', marginBottom: '8px' }}>🎯</div>
+            <div style={{ fontWeight: 600, color: '#e2e8f0', fontSize: '14px', marginBottom: '4px' }}>No Active Tasks</div>
+            <div style={{ fontSize: '12px' }}>Check back soon for new special quests and rewards!</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {tasks.map((task) => {
+              const isClaimed = task.claimed;
+              const isClaiming = claimingTaskId === task.id;
+              const hasVisited = visitedLinks.has(task.id);
+
+              let buttonLabel = task.buttonName || 'Claim';
+              if (isClaimed) {
+                buttonLabel = 'Claimed ✅';
+              } else if (task.type === 'telegram_join' && !hasVisited) {
+                buttonLabel = task.buttonName || 'Join Channel';
+              } else if (task.type === 'telegram_join' && hasVisited) {
+                buttonLabel = `Claim +${task.rewardAmount} ETB`;
+              }
+
+              return (
+                <div
+                  key={task.id}
+                  style={{
+                    background: isClaimed ? 'rgba(255, 255, 255, 0.02)' : 'var(--bg-card)',
+                    border: isClaimed ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid var(--border)',
+                    borderRadius: '14px',
+                    padding: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    opacity: isClaimed ? 0.65 : 1,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
+                        background: 'rgba(99, 102, 241, 0.12)',
+                        border: '1px solid rgba(99, 102, 241, 0.25)',
+                        display: 'grid',
+                        placeItems: 'center',
+                        fontSize: '18px',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {getTaskIcon(task.type)}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#f8fafc', marginBottom: '2px' }}>
+                        {task.title}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#4ade80', fontWeight: 700 }}>
+                        +{task.rewardAmount} ETB Playable
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    disabled={isClaimed || isClaiming}
+                    onClick={() => handleTaskAction(task)}
+                    style={{
+                      height: '36px',
+                      padding: '0 14px',
+                      borderRadius: '10px',
+                      background: isClaimed
+                        ? 'rgba(255, 255, 255, 0.05)'
+                        : isClaiming
+                        ? 'rgba(99, 102, 241, 0.4)'
+                        : 'linear-gradient(90deg, #6366f1, #818cf8)',
+                      border: isClaimed ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
+                      color: isClaimed ? '#94a3b8' : '#ffffff',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: isClaimed || isClaiming ? 'not-allowed' : 'pointer',
+                      flexShrink: 0,
+                      boxShadow: isClaimed ? 'none' : '0 2px 10px rgba(99, 102, 241, 0.3)',
+                    }}
+                  >
+                    {isClaiming ? 'Claiming...' : buttonLabel}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 export default TaskPage;
+
 
 

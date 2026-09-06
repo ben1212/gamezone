@@ -1,15 +1,36 @@
 import { Transaction, UserProfile, WalletBalances } from '../types';
+import { tg } from './telegram';
 
 const RAW_API_URL = ((import.meta as any).env?.VITE_API_URL as string) || 'https://gamezone-ben.up.railway.app';
 const API_BASE_URL = RAW_API_URL ? `${RAW_API_URL.replace(/\/$/, '')}/api` : '/api';
 
+export interface DynamicTaskItem {
+  id: string;
+  type: 'telegram_join' | 'deposit_quest' | 'bingo_challenge' | 'invitation';
+  title: string;
+  buttonName: string;
+  rewardAmount: number;
+  target: string;
+  telegramLink?: string;
+  depositAmount?: number;
+  requiredRounds?: number;
+  invitedCount?: number;
+  status: 'active' | 'disabled';
+  completions: number;
+  claimed: boolean;
+}
+
 class ApiService {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T | null> {
     try {
+      const tgUser = tg.getUser();
+      const telegramId = tgUser ? String(tgUser.id) : '';
+
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
+          ...(telegramId ? { 'x-telegram-id': telegramId } : {}),
           ...(options.headers || {}),
         },
       });
@@ -79,6 +100,36 @@ class ApiService {
       method: 'POST',
     });
   }
+
+  // Dynamic Tasks
+  public async getTasks(): Promise<DynamicTaskItem[] | null> {
+    return this.request<DynamicTaskItem[]>('/tasks');
+  }
+
+  public async claimTask(taskId: string): Promise<{
+    success: boolean;
+    message: string;
+    rewardAmount?: number;
+    newBalance?: number;
+  } | null> {
+    return this.request(`/tasks/${taskId}/claim`, {
+      method: 'POST',
+    });
+  }
+
+  // Promo Codes
+  public async redeemPromo(code: string): Promise<{
+    success: boolean;
+    message: string;
+    rewardAmount?: number;
+    newBalance?: number;
+  } | null> {
+    return this.request('/promos/redeem', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  }
 }
 
 export const api = new ApiService();
+

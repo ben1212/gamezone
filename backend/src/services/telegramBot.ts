@@ -1,4 +1,4 @@
-﻿import { createRequire } from 'module';
+import { createRequire } from 'module';
 import dotenv from 'dotenv';
 import { UserService } from './userService.js';
 
@@ -817,3 +817,57 @@ export function initTelegramBot(): any {
     return null;
   }
 }
+
+export function getBotInstance() {
+  return botInstance;
+}
+
+export async function broadcastToUsers(title: string, message: string, target?: string): Promise<{
+  sentCount: number;
+  totalUsers: number;
+  failedCount: number;
+}> {
+  if (!botInstance) {
+    console.warn('Cannot broadcast: Telegram bot instance is not initialized.');
+    return { sentCount: 0, totalUsers: 0, failedCount: 0 };
+  }
+
+  const users = await UserService.getAllUsers();
+  const activeUsers = users.filter((u) => !u.is_banned);
+  let sentCount = 0;
+  let failedCount = 0;
+
+  const formattedMsg = `📢 <b>${title.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</b>\n\n${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}`;
+
+  for (const user of activeUsers) {
+    try {
+      const chatId = Number(user.telegram_id);
+      if (chatId) {
+        await botInstance.sendMessage(chatId, formattedMsg, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: '🎮 አሁን ተጫወት (Play Now)',
+                  web_app: { url: WEB_APP_URL },
+                },
+              ],
+            ],
+          },
+        });
+        sentCount++;
+      }
+    } catch (err: any) {
+      failedCount++;
+      console.warn(`Could not deliver broadcast to ${user.telegram_id}:`, err?.message || err);
+    }
+  }
+
+  return {
+    sentCount,
+    totalUsers: activeUsers.length,
+    failedCount,
+  };
+}
+

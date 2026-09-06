@@ -1,45 +1,69 @@
 import { Request, Response, NextFunction } from 'express';
-import { db } from '../data/db.js';
-import { WalletService } from '../services/walletService.js';
+import { UserService } from '../services/userService.js';
 
 export class ReferralController {
-  public static getReferrals(_req: Request, res: Response, next: NextFunction) {
+  public static async getReferrals(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = db.getUser();
+      const telegramId =
+        (req.headers['x-telegram-id'] as string) ||
+        (req.query.telegramId as string) ||
+        (req.query.telegram_id as string);
+
+      if (!telegramId) {
+        return res.json({
+          success: true,
+          data: {
+            referralCode: 'GAMEZONE',
+            totalReferrals: 0,
+            referralBonusETB: 0,
+            bonusPerReferral: 25,
+          },
+        });
+      }
+
+      const referrals = await UserService.getUserReferrals(telegramId);
       res.json({
         success: true,
-        data: {
-          referralCode: user.referralCode,
-          totalReferrals: user.totalReferrals,
-          referralBonusETB: user.referralBonusETB,
-          bonusPerReferral: 25,
-        },
+        data: referrals,
       });
     } catch (err) {
       next(err);
     }
   }
 
-  public static claimBonus(_req: Request, res: Response, next: NextFunction) {
+  public static async claimBonus(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = db.getUser();
-      if (user.referralBonusETB <= 0) {
-        res.status(400).json({
+      const telegramId =
+        (req.headers['x-telegram-id'] as string) ||
+        (req.body.telegramId as string) ||
+        (req.body.telegram_id as string) ||
+        (req.query.telegramId as string);
+
+      if (!telegramId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Telegram ID is required',
+        });
+      }
+
+      const user = await UserService.getUserByTelegramId(telegramId);
+      if (!user) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+
+      const referrals = await UserService.getUserReferrals(telegramId);
+      if (referrals.referralBonusETB <= 0) {
+        return res.status(400).json({
           success: false,
           error: 'No referral bonus available to claim',
         });
-        return;
       }
 
-      const bonusToClaim = user.referralBonusETB;
-      db.updateUser({ referralBonusETB: 0 });
+      const bonusToClaim = referrals.referralBonusETB;
+      const newPlayable = Number(user.balance || 0) + bonusToClaim;
+      await UserService.updateUser(telegramId, { balance: newPlayable });
 
-      const { balances, transaction } = WalletService.creditReward(
-        bonusToClaim,
-        'Referral Bonus',
-        '🎁',
-        user.id
-      );
+      const balances = await UserService.getUserBalances(telegramId);
 
       res.json({
         success: true,
@@ -47,7 +71,6 @@ export class ReferralController {
         data: {
           claimedAmount: bonusToClaim,
           balances,
-          transaction,
         },
       });
     } catch (err) {
@@ -55,3 +78,4 @@ export class ReferralController {
     }
   }
 }
+

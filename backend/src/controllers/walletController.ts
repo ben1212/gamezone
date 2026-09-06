@@ -1,10 +1,27 @@
 import { Request, Response, NextFunction } from 'express';
-import { WalletService } from '../services/walletService.js';
+import { UserService } from '../services/userService.js';
 
 export class WalletController {
-  public static getBalances(_req: Request, res: Response, next: NextFunction) {
+  public static async getBalances(req: Request, res: Response, next: NextFunction) {
     try {
-      const balances = WalletService.getBalances();
+      const telegramId =
+        (req.headers['x-telegram-id'] as string) ||
+        (req.query.telegramId as string) ||
+        (req.query.telegram_id as string);
+
+      if (!telegramId) {
+        return res.json({
+          success: true,
+          data: {
+            total: 0,
+            withdrawable: 0,
+            playable: 0,
+            currency: 'ETB',
+          },
+        });
+      }
+
+      const balances = await UserService.getUserBalances(telegramId);
       res.json({
         success: true,
         data: balances,
@@ -14,9 +31,21 @@ export class WalletController {
     }
   }
 
-  public static getTransactions(_req: Request, res: Response, next: NextFunction) {
+  public static async getTransactions(req: Request, res: Response, next: NextFunction) {
     try {
-      const transactions = WalletService.getTransactions();
+      const telegramId =
+        (req.headers['x-telegram-id'] as string) ||
+        (req.query.telegramId as string) ||
+        (req.query.telegram_id as string);
+
+      if (!telegramId) {
+        return res.json({
+          success: true,
+          data: [],
+        });
+      }
+
+      const transactions = await UserService.getUserTransactions(telegramId);
       res.json({
         success: true,
         data: transactions,
@@ -26,9 +55,15 @@ export class WalletController {
     }
   }
 
-  public static deposit(req: Request, res: Response, next: NextFunction) {
+  public static async deposit(req: Request, res: Response, next: NextFunction) {
     try {
-      const { amount, paymentMethod, referenceId } = req.body;
+      const { amount, paymentMethod, referenceId, smsText } = req.body;
+      const telegramId =
+        (req.headers['x-telegram-id'] as string) ||
+        (req.body.telegramId as string) ||
+        (req.body.telegram_id as string) ||
+        (req.query.telegramId as string);
+
       const numAmount = Number(amount);
 
       if (isNaN(numAmount) || numAmount <= 0) {
@@ -39,24 +74,47 @@ export class WalletController {
         return;
       }
 
-      const result = WalletService.deposit(
-        numAmount,
-        paymentMethod || 'telebirr',
-        referenceId
-      );
+      if (!telegramId) {
+        res.status(400).json({
+          success: false,
+          error: 'Telegram ID is required for deposits',
+        });
+        return;
+      }
+
+      const created = await UserService.createDeposit({
+        telegram_id: telegramId,
+        amount: numAmount,
+        method: (paymentMethod || 'telebirr').toLowerCase().includes('cbe') ? 'cbe' : 'telebirr',
+        sms_text: smsText || referenceId || '',
+        reference_id: referenceId,
+        status: 'pending',
+      });
+
+      const balances = await UserService.getUserBalances(telegramId);
+
       res.json({
         success: true,
-        message: `Deposited ${numAmount} ETB successfully`,
-        data: result,
+        message: `Deposit request of ${numAmount} ETB submitted for review`,
+        data: {
+          deposit: created,
+          balances,
+        },
       });
     } catch (err) {
       next(err);
     }
   }
 
-  public static withdraw(req: Request, res: Response, next: NextFunction) {
+  public static async withdraw(req: Request, res: Response, next: NextFunction) {
     try {
-      const { amount, accountNumber } = req.body;
+      const { amount, accountNumber, paymentMethod } = req.body;
+      const telegramId =
+        (req.headers['x-telegram-id'] as string) ||
+        (req.body.telegramId as string) ||
+        (req.body.telegram_id as string) ||
+        (req.query.telegramId as string);
+
       const numAmount = Number(amount);
 
       if (isNaN(numAmount) || numAmount <= 0) {
@@ -67,14 +125,53 @@ export class WalletController {
         return;
       }
 
-      const result = WalletService.withdraw(numAmount, accountNumber || '0912345678');
+      if (!telegramId) {
+        res.status(400).json({
+          success: false,
+          error: 'Telegram ID is required for withdrawals',
+        });
+        return;
+      }
+
+      const user = await UserService.getUserByTelegramId(telegramId);
+      if (!user) {
+        res.status(404).json({ success: false, error: 'User not found' });
+        return;
+      }
+
+      if (Number(user.withdrawable_balance || 0) < numAmount) {
+        res.status(400).json({
+          success: false,
+          error: `Insufficient withdrawable balance. Available: ${user.withdrawable_balance || 0} ETB`,
+        });
+        return;
+      }
+
+      // Deduct withdrawable balance immediately
+      const newWithdrawable = Number(user.withdrawable_balance || 0) - numAmount;
+      await UserService.updateUser(telegramId, { withdrawable_balance: newWithdrawable });
+
+      const created = await UserService.createWithdrawal({
+        telegram_id: telegramId,
+        amount: numAmount,
+        method: paymentMethod || 'Telebirr',
+        account_number: accountNumber || user.phone || '0900000000',
+        status: 'pending',
+      });
+
+      const balances = await UserService.getUserBalances(telegramId);
+
       res.json({
         success: true,
-        message: `Withdrawal of ${numAmount} ETB initiated`,
-        data: result,
+        message: `Withdrawal of ${numAmount} ETB submitted successfully`,
+        data: {
+          withdrawal: created,
+          balances,
+        },
       });
     } catch (err) {
       next(err);
     }
   }
 }
+

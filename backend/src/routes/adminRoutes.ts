@@ -1,4 +1,4 @@
-﻿import { Router, Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { supabase } from '../services/supabase.js';
 import { UserService } from '../services/userService.js';
 
@@ -261,3 +261,160 @@ adminRoutes.put('/users/:id', async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// 8. Dynamic Tasks Management
+adminRoutes.get('/tasks', async (_req: Request, res: Response) => {
+  try {
+    const tasks = await UserService.getDynamicTasks();
+    res.json({ success: true, data: tasks });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+adminRoutes.post('/tasks', async (req: Request, res: Response) => {
+  try {
+    const {
+      type,
+      title,
+      buttonName,
+      rewardAmount,
+      target,
+      telegramLink,
+      depositAmount,
+      requiredRounds,
+      invitedCount,
+    } = req.body;
+
+    if (!title || !type) {
+      return res.status(400).json({ success: false, error: 'Title and type are required' });
+    }
+
+    const created = await UserService.createTask({
+      type,
+      title,
+      buttonName,
+      rewardAmount: Number(rewardAmount || 0),
+      target,
+      telegramLink,
+      depositAmount: depositAmount ? Number(depositAmount) : undefined,
+      requiredRounds: requiredRounds ? Number(requiredRounds) : undefined,
+      invitedCount: invitedCount ? Number(invitedCount) : undefined,
+    });
+
+    res.json({ success: true, data: created });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+adminRoutes.put('/tasks/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const updated = await UserService.updateTask(id, req.body);
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+adminRoutes.delete('/tasks/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const deleted = await UserService.deleteTask(id);
+    res.json({ success: deleted });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 9. Promo Codes Management
+adminRoutes.get('/promos', async (_req: Request, res: Response) => {
+  try {
+    const promos = await UserService.getPromoCodes();
+    res.json({ success: true, data: promos });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+adminRoutes.post('/promos', async (req: Request, res: Response) => {
+  try {
+    const { code, reward, rewardAmount, maxUses, expiry } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, error: 'Code is required' });
+    }
+
+    const created = await UserService.createPromoCode({
+      code,
+      reward: reward || `${rewardAmount || 50} ETB`,
+      rewardAmount: rewardAmount ? Number(rewardAmount) : undefined,
+      maxUses: maxUses ? Number(maxUses) : undefined,
+      expiry,
+    });
+
+    res.json({ success: true, data: created });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+adminRoutes.put('/promos/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const updated = await UserService.updatePromoCode(id, req.body);
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+adminRoutes.delete('/promos/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const deleted = await UserService.deletePromoCode(id);
+    res.json({ success: deleted });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 10. Broadcasts
+const broadcastLogs: any[] = [];
+
+adminRoutes.get('/broadcasts', async (_req: Request, res: Response) => {
+  res.json({ success: true, data: broadcastLogs });
+});
+
+adminRoutes.post('/broadcasts', async (req: Request, res: Response) => {
+  try {
+    const { title, message, target } = req.body;
+    if (!title || !message) {
+      return res.status(400).json({ success: false, error: 'Title and message are required' });
+    }
+
+    const { broadcastToUsers } = await import('../services/telegramBot.js');
+    const result = await broadcastToUsers(title, message, target);
+
+    const logEntry = {
+      id: `bc-${Date.now()}`,
+      title,
+      message,
+      target: target || 'All Players',
+      sentAt: new Date().toLocaleTimeString(),
+      recipients: result.sentCount,
+      status: 'delivered',
+    };
+
+    broadcastLogs.unshift(logEntry);
+
+    res.json({
+      success: true,
+      data: logEntry,
+      result,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
