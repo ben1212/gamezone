@@ -466,7 +466,7 @@ export const TaskPage: React.FC<TaskPageProps> = ({
               borderColor: taskFilter === 'all' ? 'rgba(99, 102, 241, 0.4)' : 'rgba(255,255,255,0.06)',
             }}
           >
-            All Quests
+            All Tasks
           </button>
           <button
             onClick={() => setTaskFilter('social')}
@@ -496,13 +496,13 @@ export const TaskPage: React.FC<TaskPageProps> = ({
               borderColor: taskFilter === 'deposit' ? 'rgba(34, 197, 94, 0.4)' : 'rgba(255,255,255,0.06)',
             }}
           >
-            💳 24h Deposits
+            💳 Deposit Quests
           </button>
         </div>
 
         {/* Task Cards List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {/* TASK 1: TELEGRAM CHANNEL JOIN */}
+          {/* TASK 1: TELEGRAM JOIN */}
           {(taskFilter === 'all' || taskFilter === 'social') && (
             <div
               style={{
@@ -533,10 +533,10 @@ export const TaskPage: React.FC<TaskPageProps> = ({
                   </div>
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>
-                      Join Official Telegram Channel
+                      Join our Telegram Channel
                     </div>
                     <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                      Subscribe to @GameZoneETH for daily promo codes
+                      Official channel for announcements & daily bonus codes
                     </div>
                   </div>
                 </div>
@@ -551,7 +551,7 @@ export const TaskPage: React.FC<TaskPageProps> = ({
                     fontWeight: 700,
                   }}
                 >
-                  +15 ETB
+                  50 ETB
                 </div>
               </div>
 
@@ -580,7 +580,7 @@ export const TaskPage: React.FC<TaskPageProps> = ({
                       textDecoration: 'none',
                     }}
                   >
-                    1. Open & Join Channel
+                    Join Channel
                   </a>
                 ) : claimedTasks['task-tg-1'] ? (
                   <button
@@ -596,11 +596,11 @@ export const TaskPage: React.FC<TaskPageProps> = ({
                       fontWeight: 600,
                     }}
                   >
-                    ✅ Claimed (+15 ETB)
+                    ✅ Claimed (50 ETB)
                   </button>
                 ) : (
                   <button
-                    onClick={() => handleClaimQuest('task-tg-1', 15, 'Telegram Channel Join')}
+                    onClick={() => handleClaimQuest('task-tg-1', 50, 'Telegram Channel Join')}
                     style={{
                       flex: 1,
                       height: '36px',
@@ -612,14 +612,14 @@ export const TaskPage: React.FC<TaskPageProps> = ({
                       boxShadow: '0 2px 10px rgba(99, 102, 241, 0.3)',
                     }}
                   >
-                    Claim 15 ETB Reward
+                    Claim 50 ETB
                   </button>
                 )}
               </div>
             </div>
           )}
 
-          {/* TASK 2: 24-HOUR 100 ETB DEPOSIT QUEST */}
+          {/* TASK 2: DEPOSIT QUEST */}
           {(taskFilter === 'all' || taskFilter === 'deposit') && (
             <div
               style={{
@@ -650,10 +650,10 @@ export const TaskPage: React.FC<TaskPageProps> = ({
                   </div>
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>
-                      24-Hour 100 ETB Deposit Quest
+                      Deposit 100 ETB
                     </div>
                     <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                      Deposit ≥ 100 ETB in 24 hours to claim +25 ETB
+                      Deposit 100 ETB to unlock and claim reward
                     </div>
                   </div>
                 </div>
@@ -668,7 +668,7 @@ export const TaskPage: React.FC<TaskPageProps> = ({
                     fontWeight: 700,
                   }}
                 >
-                  +25 ETB
+                  20 ETB
                 </div>
               </div>
 
@@ -687,7 +687,7 @@ export const TaskPage: React.FC<TaskPageProps> = ({
                       fontWeight: 600,
                     }}
                   >
-                    ✅ Claimed (+25 ETB)
+                    ✅ Claimed (20 ETB)
                   </button>
                 ) : (
                   <>
@@ -705,17 +705,16 @@ export const TaskPage: React.FC<TaskPageProps> = ({
                           fontWeight: 600,
                         }}
                       >
-                        Deposit 100 ETB
+                        Deposit Now
                       </button>
                     )}
                     <button
                       onClick={() => {
-                        // Check if player has total deposit or balance
                         if ((balances?.playable || 0) >= 100 || (balances?.total || 0) >= 100) {
-                          handleClaimQuest('task-dep-100', 25, '24h 100 ETB Deposit Quest');
+                          handleClaimQuest('task-dep-100', 20, 'Deposit 100 ETB Quest');
                         } else {
                           if (onShowToast) {
-                            onShowToast('⚠️ Deposit at least 100 ETB in 24 hours to claim this reward!');
+                            onShowToast('⚠️ Deposit at least 100 ETB to claim this reward!');
                           }
                           if (onOpenDeposit) onOpenDeposit();
                         }
@@ -730,9 +729,99 @@ export const TaskPage: React.FC<TaskPageProps> = ({
                         fontWeight: 700,
                       }}
                     >
-                      Claim 25 ETB
+                      Claim 20 ETB
                     </button>
                   </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TASK 3: BINGO CHALLENGE */}
+          {(taskFilter === 'all' || taskFilter === 'deposit') && (
+            <div
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: '14px',
+                padding: '14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      border: '1px solid rgba(245, 158, 11, 0.25)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      fontSize: '18px',
+                    }}
+                  >
+                    🎮
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>
+                      Play 3 Bingo Rounds
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                      Play 3 rounds of Live Bingo to unlock reward
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    background: 'rgba(245, 158, 11, 0.12)',
+                    color: '#fbbf24',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                  }}
+                >
+                  30 ETB
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
+                {claimedTasks['task-bingo-3'] ? (
+                  <button
+                    disabled
+                    style={{
+                      flex: 1,
+                      height: '36px',
+                      borderRadius: '8px',
+                      background: 'rgba(34, 197, 94, 0.1)',
+                      border: '1px solid rgba(34, 197, 94, 0.3)',
+                      color: '#4ade80',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    ✅ Claimed (30 ETB)
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleClaimQuest('task-bingo-3', 30, 'Play 3 Bingo Rounds')}
+                    style={{
+                      flex: 1,
+                      height: '36px',
+                      borderRadius: '8px',
+                      background: 'linear-gradient(90deg, #6366f1, #4f46e5)',
+                      color: 'white',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                    }}
+                  >
+                    Play Bingo
+                  </button>
                 )}
               </div>
             </div>
@@ -744,4 +833,5 @@ export const TaskPage: React.FC<TaskPageProps> = ({
 };
 
 export default TaskPage;
+
 

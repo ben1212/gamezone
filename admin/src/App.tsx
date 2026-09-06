@@ -46,21 +46,20 @@ interface UserItem {
   lastActive: string;
 }
 
-export type TaskType = 'telegram_join' | 'deposit_requirement' | 'gameplay';
+export type TaskType = 'telegram_join' | 'deposit_quest' | 'bingo_challenge';
 
 interface TaskItem {
   id: string;
-  title: string;
   type: TaskType;
-  desc: string;
-  reward: string;
+  title: string;
+  buttonName: string;
   rewardAmount: number;
   target: string;
   status: 'active' | 'disabled';
   completions: number;
-  telegramUrl?: string;
-  requiredDepositAmount?: number;
-  timeWindowHours?: number;
+  telegramLink?: string;
+  depositAmount?: number;
+  requiredRounds?: number;
 }
 
 interface PromoItem {
@@ -355,64 +354,47 @@ export const App: React.FC = () => {
   const [tasks, setTasks] = useState<TaskItem[]>([
     {
       id: 't-1',
-      title: 'Join Official Telegram Channel',
       type: 'telegram_join',
-      telegramUrl: '@GameZoneETH',
-      desc: 'Subscribe to the official @GameZoneETH announcement channel.',
-      reward: '+15 ETB Playable',
-      rewardAmount: 15,
+      title: 'Join our Telegram Channel',
+      telegramLink: 'https://t.me/GameZoneETH',
+      buttonName: 'Join Channel',
+      rewardAmount: 50,
       target: 'All Players',
       status: 'active',
       completions: 3410,
     },
     {
       id: 't-2',
-      title: '24-Hour 100 ETB Deposit Quest',
-      type: 'deposit_requirement',
-      requiredDepositAmount: 100,
-      timeWindowHours: 24,
-      desc: 'Deposit 100 ETB or more within 24 hours to claim your extra +25 ETB playable reward.',
-      reward: '+25 ETB Playable',
-      rewardAmount: 25,
+      type: 'deposit_quest',
+      title: 'Deposit 100 ETB',
+      depositAmount: 100,
+      buttonName: 'Deposit Now',
+      rewardAmount: 20,
       target: 'All Players',
       status: 'active',
       completions: 840,
     },
     {
       id: 't-3',
-      title: 'Join VIP Bingo Discussion Group',
-      type: 'telegram_join',
-      telegramUrl: 'https://t.me/GameZoneVIPChat',
-      desc: 'Join the VIP players discussion group for exclusive game alerts.',
-      reward: '+20 ETB Bonus',
-      rewardAmount: 20,
-      target: 'VIP Players',
+      type: 'bingo_challenge',
+      title: 'Play 3 Bingo Rounds',
+      requiredRounds: 3,
+      buttonName: 'Play Bingo',
+      rewardAmount: 30,
+      target: 'All Players',
       status: 'active',
       completions: 420,
     },
-    {
-      id: 't-4',
-      title: 'High Roller 500 ETB Deposit Quest',
-      type: 'deposit_requirement',
-      requiredDepositAmount: 500,
-      timeWindowHours: 24,
-      desc: 'Deposit 500 ETB within 24 hours to claim 2 Free VIP Cartelas.',
-      reward: '2 VIP Cartelas',
-      rewardAmount: 100,
-      target: 'Active Players',
-      status: 'active',
-      completions: 195,
-    },
   ]);
-  const [taskFilter, setTaskFilter] = useState<'all' | 'telegram' | 'deposit'>('all');
+  const [taskFilter, setTaskFilter] = useState<'all' | 'telegram' | 'deposit' | 'bingo'>('all');
   const [showNewTaskModal, setShowNewTaskModal] = useState<boolean>(false);
   const [newTaskType, setNewTaskType] = useState<TaskType>('telegram_join');
-  const [newTaskTitle, setNewTaskTitle] = useState<string>('');
-  const [newTaskDesc, setNewTaskDesc] = useState<string>('');
-  const [newTaskRewardAmount, setNewTaskRewardAmount] = useState<number>(15);
-  const [newTaskTelegramUrl, setNewTaskTelegramUrl] = useState<string>('@GameZoneETH');
+  const [newTaskTitle, setNewTaskTitle] = useState<string>('Join our Telegram Channel');
+  const [newTaskTelegramLink, setNewTaskTelegramLink] = useState<string>('https://t.me/GameZoneETH');
   const [newTaskDepositAmount, setNewTaskDepositAmount] = useState<number>(100);
-  const [newTaskTimeWindow, setNewTaskTimeWindow] = useState<number>(24);
+  const [newTaskRequiredRounds, setNewTaskRequiredRounds] = useState<number>(3);
+  const [newTaskButtonName, setNewTaskButtonName] = useState<string>('Join Channel');
+  const [newTaskRewardAmount, setNewTaskRewardAmount] = useState<number>(50);
   const [newTaskTarget, setNewTaskTarget] = useState<string>('All Players');
 
   // ── Promo Codes State ──
@@ -564,41 +546,23 @@ export const App: React.FC = () => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
 
-    let rewardStr = `+${newTaskRewardAmount} ETB Playable`;
-    if (newTaskType === 'deposit_requirement') {
-      rewardStr = `+${newTaskRewardAmount} ETB Playable`;
-    }
-
     const newTask: TaskItem = {
       id: `t-${Date.now()}`,
-      title: newTaskTitle.trim(),
       type: newTaskType,
-      desc:
-        newTaskDesc.trim() ||
-        (newTaskType === 'telegram_join'
-          ? `Subscribe to ${newTaskTelegramUrl} to claim your bonus reward.`
-          : `Deposit ${newTaskDepositAmount} ETB or more within ${newTaskTimeWindow} hours to claim your reward.`),
-      reward: rewardStr,
+      title: newTaskTitle.trim(),
+      buttonName: newTaskButtonName.trim() || 'Claim Reward',
       rewardAmount: newTaskRewardAmount,
       target: newTaskTarget,
       status: 'active',
       completions: 0,
-      telegramUrl: newTaskType === 'telegram_join' ? newTaskTelegramUrl.trim() : undefined,
-      requiredDepositAmount:
-        newTaskType === 'deposit_requirement' ? newTaskDepositAmount : undefined,
-      timeWindowHours:
-        newTaskType === 'deposit_requirement' ? newTaskTimeWindow : undefined,
+      telegramLink: newTaskType === 'telegram_join' ? newTaskTelegramLink.trim() : undefined,
+      depositAmount: newTaskType === 'deposit_quest' ? newTaskDepositAmount : undefined,
+      requiredRounds: newTaskType === 'bingo_challenge' ? newTaskRequiredRounds : undefined,
     };
 
     setTasks([newTask, ...tasks]);
     setShowNewTaskModal(false);
-    setNewTaskTitle('');
-    setNewTaskDesc('');
-    setNewTaskRewardAmount(15);
-    setNewTaskTelegramUrl('@GameZoneETH');
-    setNewTaskDepositAmount(100);
-    setNewTaskTimeWindow(24);
-    showToast(`Task "${newTask.title}" created successfully!`);
+    showToast(`Task "${newTask.title}" saved!`);
   };
 
   const handleCreatePromo = (e: React.FormEvent) => {
@@ -1319,7 +1283,13 @@ export const App: React.FC = () => {
                     className={`filter-tab ${taskFilter === 'deposit' ? 'active' : ''}`}
                     onClick={() => setTaskFilter('deposit')}
                   >
-                    💳 Deposit Quests ({tasks.filter((t) => t.type === 'deposit_requirement').length})
+                    💳 Deposit Quest ({tasks.filter((t) => t.type === 'deposit_quest').length})
+                  </button>
+                  <button
+                    className={`filter-tab ${taskFilter === 'bingo' ? 'active' : ''}`}
+                    onClick={() => setTaskFilter('bingo')}
+                  >
+                    🎮 Bingo Challenge ({tasks.filter((t) => t.type === 'bingo_challenge').length})
                   </button>
                 </div>
               </div>
@@ -1328,7 +1298,8 @@ export const App: React.FC = () => {
                 {tasks
                   .filter((task) => {
                     if (taskFilter === 'telegram') return task.type === 'telegram_join';
-                    if (taskFilter === 'deposit') return task.type === 'deposit_requirement';
+                    if (taskFilter === 'deposit') return task.type === 'deposit_quest';
+                    if (taskFilter === 'bingo') return task.type === 'bingo_challenge';
                     return true;
                   })
                   .map((task) => (
@@ -1342,11 +1313,22 @@ export const App: React.FC = () => {
                                 background:
                                   task.type === 'telegram_join'
                                     ? 'rgba(34, 211, 238, 0.12)'
-                                    : 'rgba(99, 102, 241, 0.12)',
-                                color: task.type === 'telegram_join' ? '#22d3ee' : '#a5b4fc',
+                                    : task.type === 'deposit_quest'
+                                    ? 'rgba(34, 197, 94, 0.12)'
+                                    : 'rgba(245, 158, 11, 0.12)',
+                                color:
+                                  task.type === 'telegram_join'
+                                    ? '#22d3ee'
+                                    : task.type === 'deposit_quest'
+                                    ? '#4ade80'
+                                    : '#fbbf24',
                               }}
                             >
-                              {task.type === 'telegram_join' ? '📢 Telegram Join' : '💳 Deposit Quest'}
+                              {task.type === 'telegram_join'
+                                ? '📢 Telegram Join'
+                                : task.type === 'deposit_quest'
+                                ? '💳 Deposit Quest'
+                                : '🎮 Bingo Challenge'}
                             </span>
                             <span className={`pill-badge ${task.status}`}>{task.status}</span>
                           </div>
@@ -1355,61 +1337,98 @@ export const App: React.FC = () => {
                         <div className="item-card-title" style={{ marginTop: '10px' }}>
                           {task.title}
                         </div>
-                        <div className="item-card-desc">{task.desc}</div>
 
-                        {/* SPECIFIC DETAILS BOX */}
-                        {task.type === 'telegram_join' && task.telegramUrl && (
+                        {/* TYPE-SPECIFIC PARAMETER */}
+                        {task.type === 'telegram_join' && task.telegramLink && (
                           <div
                             style={{
-                              marginTop: '10px',
+                              marginTop: '8px',
                               padding: '8px 10px',
                               background: '#111827',
                               borderRadius: '6px',
                               border: '1px solid var(--border)',
                               fontSize: '11px',
                               display: 'flex',
-                              alignItems: 'center',
                               justifyContent: 'space-between',
                             }}
                           >
-                            <span style={{ color: '#8995a7' }}>Channel / Group:</span>
-                            <span style={{ color: '#22d3ee', fontWeight: 700, fontFamily: 'monospace' }}>
-                              {task.telegramUrl}
+                            <span style={{ color: '#8995a7' }}>Telegram Link:</span>
+                            <span style={{ color: '#22d3ee', fontWeight: 600, fontFamily: 'monospace' }}>
+                              {task.telegramLink}
                             </span>
                           </div>
                         )}
 
-                        {task.type === 'deposit_requirement' && (
+                        {task.type === 'deposit_quest' && (
                           <div
                             style={{
-                              marginTop: '10px',
+                              marginTop: '8px',
                               padding: '8px 10px',
                               background: '#111827',
                               borderRadius: '6px',
                               border: '1px solid var(--border)',
                               fontSize: '11px',
                               display: 'flex',
-                              flexDirection: 'column',
-                              gap: '4px',
+                              justifyContent: 'space-between',
                             }}
                           >
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ color: '#8995a7' }}>Required Deposit:</span>
-                              <span style={{ color: '#4ade80', fontWeight: 700 }}>
-                                {task.requiredDepositAmount || 100} ETB in {task.timeWindowHours || 24}h
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '9px', color: '#657286' }}>
-                              Player clicks "Claim" → System verifies 24-hour deposits
-                            </div>
+                            <span style={{ color: '#8995a7' }}>Required Deposit:</span>
+                            <span style={{ color: '#4ade80', fontWeight: 700 }}>
+                              {task.depositAmount || 100} ETB
+                            </span>
                           </div>
                         )}
+
+                        {task.type === 'bingo_challenge' && (
+                          <div
+                            style={{
+                              marginTop: '8px',
+                              padding: '8px 10px',
+                              background: '#111827',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border)',
+                              fontSize: '11px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <span style={{ color: '#8995a7' }}>Required Rounds:</span>
+                            <span style={{ color: '#fbbf24', fontWeight: 700 }}>
+                              {task.requiredRounds || 3} Rounds
+                            </span>
+                          </div>
+                        )}
+
+                        {/* BUTTON NAME BADGE */}
+                        <div
+                          style={{
+                            marginTop: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '11px',
+                            color: '#8995a7',
+                          }}
+                        >
+                          <span>Action Button:</span>
+                          <span
+                            style={{
+                              background: 'rgba(99, 102, 241, 0.15)',
+                              color: '#a5b4fc',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {task.buttonName}
+                          </span>
+                        </div>
                       </div>
 
                       <div>
                         <div className="item-card-meta">
                           <div>
-                            Reward: <span className="item-reward">{task.reward}</span>
+                            Reward: <span className="item-reward">{task.rewardAmount} ETB</span>
                           </div>
                           <div>Target: {task.target}</div>
                           <div style={{ marginLeft: 'auto', color: '#a5b4fc', fontWeight: 600 }}>
@@ -2238,9 +2257,9 @@ export const App: React.FC = () => {
          ========================================= */}
       {showNewTaskModal && (
         <div className="modal-backdrop" onClick={() => setShowNewTaskModal(false)}>
-          <div className="modal-box" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-box" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
-              <h3>Create New Player Task</h3>
+              <h3>Create New Task</h3>
               <button className="modal-close" onClick={() => setShowNewTaskModal(false)}>
                 ✕
               </button>
@@ -2248,9 +2267,9 @@ export const App: React.FC = () => {
 
             <form onSubmit={handleCreateTask}>
               <div className="modal-body">
-                {/* TASK TYPE DROPDOWN */}
+                {/* 1. TASK TYPE */}
                 <div className="form-group">
-                  <label className="form-label">Task Type (Select Task Category)</label>
+                  <label className="form-label">Task Type</label>
                   <select
                     className="select"
                     style={{ width: '100%', height: '42px', fontSize: '13px', background: '#111827' }}
@@ -2259,111 +2278,104 @@ export const App: React.FC = () => {
                       const type = e.target.value as TaskType;
                       setNewTaskType(type);
                       if (type === 'telegram_join') {
-                        setNewTaskTitle('Join Official Telegram Channel');
-                        setNewTaskRewardAmount(15);
-                      } else if (type === 'deposit_requirement') {
-                        setNewTaskTitle('24-Hour 100 ETB Deposit Quest');
-                        setNewTaskRewardAmount(25);
-                      } else if (type === 'gameplay') {
-                        setNewTaskTitle('Play 5 Bingo Rounds');
+                        setNewTaskTitle('Join our Telegram Channel');
+                        setNewTaskTelegramLink('https://t.me/GameZoneETH');
+                        setNewTaskButtonName('Join Channel');
+                        setNewTaskRewardAmount(50);
+                      } else if (type === 'deposit_quest') {
+                        setNewTaskTitle('Deposit 100 ETB');
+                        setNewTaskDepositAmount(100);
+                        setNewTaskButtonName('Deposit Now');
                         setNewTaskRewardAmount(20);
+                      } else if (type === 'bingo_challenge') {
+                        setNewTaskTitle('Play 3 Bingo Rounds');
+                        setNewTaskRequiredRounds(3);
+                        setNewTaskButtonName('Play Bingo');
+                        setNewTaskRewardAmount(30);
                       }
                     }}
                   >
-                    <option value="telegram_join">📢 Telegram Channel / Group Join Task</option>
-                    <option value="deposit_requirement">💳 24-Hour Deposit Requirement Quest (Claim Button)</option>
-                    <option value="gameplay">🎮 Gameplay / Bingo Round Challenge</option>
+                    <option value="telegram_join">📢 Telegram Join</option>
+                    <option value="deposit_quest">💳 Deposit Quest</option>
+                    <option value="bingo_challenge">🎮 Bingo Challenge</option>
                   </select>
                 </div>
 
-                {/* TASK TITLE */}
+                {/* 2. TASK TITLE */}
                 <div className="form-group">
-                  <label className="form-label">Task Title / Name</label>
+                  <label className="form-label">Task Title</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder={
-                      newTaskType === 'telegram_join'
-                        ? 'e.g. Join Official Telegram Channel'
-                        : 'e.g. 24-Hour 100 ETB Deposit Quest'
-                    }
                     value={newTaskTitle}
                     onChange={(e) => setNewTaskTitle(e.target.value)}
                     required
                   />
                 </div>
 
-                {/* CONDITIONAL: TELEGRAM CHANNEL FIELDS */}
+                {/* 3. TYPE-SPECIFIC FIELD */}
                 {newTaskType === 'telegram_join' && (
                   <div className="form-group">
-                    <label className="form-label">Telegram Channel / Group (Username or Link)</label>
+                    <label className="form-label">Telegram Link</label>
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="e.g. @GameZoneETH or https://t.me/GameZoneETH"
-                      value={newTaskTelegramUrl}
-                      onChange={(e) => setNewTaskTelegramUrl(e.target.value)}
+                      placeholder="https://t.me/..."
+                      value={newTaskTelegramLink}
+                      onChange={(e) => setNewTaskTelegramLink(e.target.value)}
                       required
                     />
-                    <span style={{ fontSize: '10px', color: '#8995a7', marginTop: '4px', display: 'block' }}>
-                      System links user directly to this channel and checks membership upon claiming.
-                    </span>
                   </div>
                 )}
 
-                {/* CONDITIONAL: DEPOSIT REQUIREMENT FIELDS */}
-                {newTaskType === 'deposit_requirement' && (
-                  <div style={{ background: '#111827', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '16px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
-                      <div>
-                        <label className="form-label">Required Deposit (ETB)</label>
-                        <input
-                          type="number"
-                          className="form-input"
-                          min="10"
-                          value={newTaskDepositAmount}
-                          onChange={(e) => setNewTaskDepositAmount(Number(e.target.value))}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="form-label">Time Window (Hours)</label>
-                        <select
-                          className="select"
-                          style={{ width: '100%', height: '42px', fontSize: '12px' }}
-                          value={newTaskTimeWindow}
-                          onChange={(e) => setNewTaskTimeWindow(Number(e.target.value))}
-                        >
-                          <option value={24}>Within 24 Hours</option>
-                          <option value={48}>Within 48 Hours</option>
-                          <option value={72}>Within 72 Hours</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: '10px', color: '#a5b4fc', lineHeight: 1.4 }}>
-                      ⚡ <strong>How it works:</strong> Players see a "Claim" button. When clicked, the system verifies if the player deposited at least {newTaskDepositAmount} ETB in the past {newTaskTimeWindow} hours. If yes, reward is credited; otherwise, prompts player to deposit.
-                    </div>
-                  </div>
-                )}
-
-                {/* CONDITIONAL: GAMEPLAY FIELDS */}
-                {newTaskType === 'gameplay' && (
-                  <div style={{ background: '#111827', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '16px' }}>
-                    <div style={{ fontSize: '11px', color: '#a5b4fc', lineHeight: 1.4 }}>
-                      🎮 <strong>Gameplay Quest:</strong> Players participate in game rooms (e.g. 5 Bingo rounds) to unlock and claim this reward balance.
-                    </div>
-                  </div>
-                )}
-
-                {/* REWARD AMOUNT & TARGET */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                {newTaskType === 'deposit_quest' && (
                   <div className="form-group">
-                    <label className="form-label">Reward Amount (ETB)</label>
+                    <label className="form-label">Deposit Amount (ETB)</label>
                     <input
                       type="number"
                       className="form-input"
                       min="1"
-                      placeholder="15"
+                      value={newTaskDepositAmount}
+                      onChange={(e) => setNewTaskDepositAmount(Number(e.target.value))}
+                      required
+                    />
+                  </div>
+                )}
+
+                {newTaskType === 'bingo_challenge' && (
+                  <div className="form-group">
+                    <label className="form-label">Required Rounds</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      min="1"
+                      value={newTaskRequiredRounds}
+                      onChange={(e) => setNewTaskRequiredRounds(Number(e.target.value))}
+                      required
+                    />
+                  </div>
+                )}
+
+                {/* 4. BUTTON NAME */}
+                <div className="form-group">
+                  <label className="form-label">Button Name</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={newTaskButtonName}
+                    onChange={(e) => setNewTaskButtonName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* 5. REWARD & TARGET AUDIENCE ROW */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Reward (ETB)</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      min="1"
                       value={newTaskRewardAmount}
                       onChange={(e) => setNewTaskRewardAmount(Number(e.target.value))}
                       required
@@ -2385,22 +2397,6 @@ export const App: React.FC = () => {
                     </select>
                   </div>
                 </div>
-
-                {/* DESCRIPTION */}
-                <div className="form-group">
-                  <label className="form-label">Description / Instructions (Optional)</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder={
-                      newTaskType === 'telegram_join'
-                        ? 'e.g. Subscribe to our channel to get daily promo drops'
-                        : `e.g. Deposit ${newTaskDepositAmount} ETB within ${newTaskTimeWindow}h to claim bonus`
-                    }
-                    value={newTaskDesc}
-                    onChange={(e) => setNewTaskDesc(e.target.value)}
-                  />
-                </div>
               </div>
 
               <div className="modal-foot">
@@ -2408,7 +2404,7 @@ export const App: React.FC = () => {
                   Cancel
                 </button>
                 <button type="submit" className="sm-btn primary">
-                  Save & Launch Task
+                  Save Task
                 </button>
               </div>
             </form>
