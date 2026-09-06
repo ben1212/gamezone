@@ -46,7 +46,7 @@ interface UserItem {
   lastActive: string;
 }
 
-export type TaskType = 'telegram_join' | 'deposit_quest' | 'bingo_challenge';
+export type TaskType = 'telegram_join' | 'deposit_quest' | 'bingo_challenge' | 'invitation';
 
 interface TaskItem {
   id: string;
@@ -60,6 +60,7 @@ interface TaskItem {
   telegramLink?: string;
   depositAmount?: number;
   requiredRounds?: number;
+  invitedCount?: number;
 }
 
 interface PromoItem {
@@ -386,13 +387,14 @@ export const App: React.FC = () => {
       completions: 420,
     },
   ]);
-  const [taskFilter, setTaskFilter] = useState<'all' | 'telegram' | 'deposit' | 'bingo'>('all');
+  const [taskFilter, setTaskFilter] = useState<'all' | 'telegram' | 'deposit' | 'bingo' | 'invitation'>('all');
   const [showNewTaskModal, setShowNewTaskModal] = useState<boolean>(false);
   const [newTaskType, setNewTaskType] = useState<TaskType>('telegram_join');
   const [newTaskTitle, setNewTaskTitle] = useState<string>('Join our Telegram Channel');
   const [newTaskTelegramLink, setNewTaskTelegramLink] = useState<string>('https://t.me/GameZoneETH');
   const [newTaskDepositAmount, setNewTaskDepositAmount] = useState<number>(100);
   const [newTaskRequiredRounds, setNewTaskRequiredRounds] = useState<number>(3);
+  const [newTaskInvitedCount, setNewTaskInvitedCount] = useState<number>(5);
   const [newTaskButtonName, setNewTaskButtonName] = useState<string>('Join Channel');
   const [newTaskRewardAmount, setNewTaskRewardAmount] = useState<number>(50);
   const [newTaskTarget, setNewTaskTarget] = useState<string>('All Players');
@@ -558,6 +560,7 @@ export const App: React.FC = () => {
       telegramLink: newTaskType === 'telegram_join' ? newTaskTelegramLink.trim() : undefined,
       depositAmount: newTaskType === 'deposit_quest' ? newTaskDepositAmount : undefined,
       requiredRounds: newTaskType === 'bingo_challenge' ? newTaskRequiredRounds : undefined,
+      invitedCount: newTaskType === 'invitation' ? newTaskInvitedCount : undefined,
     };
 
     setTasks([newTask, ...tasks]);
@@ -1291,6 +1294,12 @@ export const App: React.FC = () => {
                   >
                     🎮 Bingo Challenge ({tasks.filter((t) => t.type === 'bingo_challenge').length})
                   </button>
+                  <button
+                    className={`filter-tab ${taskFilter === 'invitation' ? 'active' : ''}`}
+                    onClick={() => setTaskFilter('invitation')}
+                  >
+                    🎟️ Invitation ({tasks.filter((t) => t.type === 'invitation').length})
+                  </button>
                 </div>
               </div>
 
@@ -1300,6 +1309,7 @@ export const App: React.FC = () => {
                     if (taskFilter === 'telegram') return task.type === 'telegram_join';
                     if (taskFilter === 'deposit') return task.type === 'deposit_quest';
                     if (taskFilter === 'bingo') return task.type === 'bingo_challenge';
+                    if (taskFilter === 'invitation') return task.type === 'invitation';
                     return true;
                   })
                   .map((task) => (
@@ -1315,12 +1325,16 @@ export const App: React.FC = () => {
                                     ? 'rgba(34, 211, 238, 0.12)'
                                     : task.type === 'deposit_quest'
                                     ? 'rgba(34, 197, 94, 0.12)'
+                                    : task.type === 'invitation'
+                                    ? 'rgba(167, 139, 250, 0.12)'
                                     : 'rgba(245, 158, 11, 0.12)',
                                 color:
                                   task.type === 'telegram_join'
                                     ? '#22d3ee'
                                     : task.type === 'deposit_quest'
                                     ? '#4ade80'
+                                    : task.type === 'invitation'
+                                    ? '#a78bfa'
                                     : '#fbbf24',
                               }}
                             >
@@ -1328,6 +1342,8 @@ export const App: React.FC = () => {
                                 ? '📢 Telegram Join'
                                 : task.type === 'deposit_quest'
                                 ? '💳 Deposit Quest'
+                                : task.type === 'invitation'
+                                ? '🎟️ Invitation'
                                 : '🎮 Bingo Challenge'}
                             </span>
                             <span className={`pill-badge ${task.status}`}>{task.status}</span>
@@ -1395,6 +1411,26 @@ export const App: React.FC = () => {
                             <span style={{ color: '#8995a7' }}>Required Rounds:</span>
                             <span style={{ color: '#fbbf24', fontWeight: 700 }}>
                               {task.requiredRounds || 3} Rounds
+                            </span>
+                          </div>
+                        )}
+
+                        {task.type === 'invitation' && (
+                          <div
+                            style={{
+                              marginTop: '8px',
+                              padding: '8px 10px',
+                              background: '#111827',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border)',
+                              fontSize: '11px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <span style={{ color: '#8995a7' }}>Required Invites:</span>
+                            <span style={{ color: '#a78bfa', fontWeight: 700 }}>
+                              {task.invitedCount || 5} Players
                             </span>
                           </div>
                         )}
@@ -2292,12 +2328,18 @@ export const App: React.FC = () => {
                         setNewTaskRequiredRounds(3);
                         setNewTaskButtonName('Play Bingo');
                         setNewTaskRewardAmount(30);
+                      } else if (type === 'invitation') {
+                        setNewTaskTitle('Invite Friends');
+                        setNewTaskInvitedCount(5);
+                        setNewTaskButtonName('Invite Now');
+                        setNewTaskRewardAmount(25);
                       }
                     }}
                   >
                     <option value="telegram_join">📢 Telegram Join</option>
                     <option value="deposit_quest">💳 Deposit Quest</option>
                     <option value="bingo_challenge">🎮 Bingo Challenge</option>
+                    <option value="invitation">🎟️ Invitation</option>
                   </select>
                 </div>
 
@@ -2351,6 +2393,20 @@ export const App: React.FC = () => {
                       min="1"
                       value={newTaskRequiredRounds}
                       onChange={(e) => setNewTaskRequiredRounds(Number(e.target.value))}
+                      required
+                    />
+                  </div>
+                )}
+
+                {newTaskType === 'invitation' && (
+                  <div className="form-group">
+                    <label className="form-label">Required Invited Number</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      min="1"
+                      value={newTaskInvitedCount}
+                      onChange={(e) => setNewTaskInvitedCount(Number(e.target.value))}
                       required
                     />
                   </div>
