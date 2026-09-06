@@ -209,7 +209,12 @@ export const App: React.FC = () => {
           )}
 
           {activePage === 'task' && (
-            <TaskPage />
+            <TaskPage
+              balances={balances}
+              onUpdateBalances={handleUpdateBalances}
+              onShowToast={showToast}
+              onOpenDeposit={() => setActiveModal({ type: 'deposit' })}
+            />
           )}
 
           {activePage === 'profile' && (

@@ -46,14 +46,21 @@ interface UserItem {
   lastActive: string;
 }
 
+export type TaskType = 'telegram_join' | 'deposit_requirement' | 'gameplay';
+
 interface TaskItem {
   id: string;
   title: string;
+  type: TaskType;
   desc: string;
   reward: string;
+  rewardAmount: number;
   target: string;
   status: 'active' | 'disabled';
   completions: number;
+  telegramUrl?: string;
+  requiredDepositAmount?: number;
+  timeWindowHours?: number;
 }
 
 interface PromoItem {
@@ -342,52 +349,70 @@ export const App: React.FC = () => {
     },
   ]);
   const [userSearch, setUserSearch] = useState<string>('');
-  const [userStatusFilter, setUserStatusFilter] = useState<'all' | 'active' | 'blocked'>('all');
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
 
   // ── Tasks State ──
   const [tasks, setTasks] = useState<TaskItem[]>([
     {
       id: 't-1',
-      title: 'Daily Login Reward',
-      desc: 'Claim daily bonus by logging in consecutive days.',
-      reward: '+5 ETB Playable',
-      target: 'All Players',
-      status: 'active',
-      completions: 1284,
-    },
-    {
-      id: 't-2',
-      title: 'Join Telegram Channel',
+      title: 'Join Official Telegram Channel',
+      type: 'telegram_join',
+      telegramUrl: '@GameZoneETH',
       desc: 'Subscribe to the official @GameZoneETH announcement channel.',
       reward: '+15 ETB Playable',
-      target: 'New Players',
+      rewardAmount: 15,
+      target: 'All Players',
       status: 'active',
       completions: 3410,
     },
     {
-      id: 't-3',
-      title: 'Play 5 Bingo Rounds',
-      desc: 'Participate in any 5 Live Bingo or Turbo games.',
-      reward: '+20 ETB Bonus',
-      target: 'Active Players',
+      id: 't-2',
+      title: '24-Hour 100 ETB Deposit Quest',
+      type: 'deposit_requirement',
+      requiredDepositAmount: 100,
+      timeWindowHours: 24,
+      desc: 'Deposit 100 ETB or more within 24 hours to claim your extra +25 ETB playable reward.',
+      reward: '+25 ETB Playable',
+      rewardAmount: 25,
+      target: 'All Players',
       status: 'active',
-      completions: 890,
+      completions: 840,
+    },
+    {
+      id: 't-3',
+      title: 'Join VIP Bingo Discussion Group',
+      type: 'telegram_join',
+      telegramUrl: 'https://t.me/GameZoneVIPChat',
+      desc: 'Join the VIP players discussion group for exclusive game alerts.',
+      reward: '+20 ETB Bonus',
+      rewardAmount: 20,
+      target: 'VIP Players',
+      status: 'active',
+      completions: 420,
     },
     {
       id: 't-4',
-      title: 'First Deposit Match',
-      desc: 'Deposit 100 ETB or more for an instant 50 ETB ticket credit.',
-      reward: '+50 ETB Cartela',
-      target: 'First-time Depositors',
+      title: 'High Roller 500 ETB Deposit Quest',
+      type: 'deposit_requirement',
+      requiredDepositAmount: 500,
+      timeWindowHours: 24,
+      desc: 'Deposit 500 ETB within 24 hours to claim 2 Free VIP Cartelas.',
+      reward: '2 VIP Cartelas',
+      rewardAmount: 100,
+      target: 'Active Players',
       status: 'active',
-      completions: 642,
+      completions: 195,
     },
   ]);
+  const [taskFilter, setTaskFilter] = useState<'all' | 'telegram' | 'deposit'>('all');
   const [showNewTaskModal, setShowNewTaskModal] = useState<boolean>(false);
+  const [newTaskType, setNewTaskType] = useState<TaskType>('telegram_join');
   const [newTaskTitle, setNewTaskTitle] = useState<string>('');
   const [newTaskDesc, setNewTaskDesc] = useState<string>('');
-  const [newTaskReward, setNewTaskReward] = useState<string>('');
+  const [newTaskRewardAmount, setNewTaskRewardAmount] = useState<number>(15);
+  const [newTaskTelegramUrl, setNewTaskTelegramUrl] = useState<string>('@GameZoneETH');
+  const [newTaskDepositAmount, setNewTaskDepositAmount] = useState<number>(100);
+  const [newTaskTimeWindow, setNewTaskTimeWindow] = useState<number>(24);
   const [newTaskTarget, setNewTaskTarget] = useState<string>('All Players');
 
   // ── Promo Codes State ──
@@ -537,21 +562,42 @@ export const App: React.FC = () => {
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTaskTitle.trim() || !newTaskReward.trim()) return;
+    if (!newTaskTitle.trim()) return;
+
+    let rewardStr = `+${newTaskRewardAmount} ETB Playable`;
+    if (newTaskType === 'deposit_requirement') {
+      rewardStr = `+${newTaskRewardAmount} ETB Playable`;
+    }
+
     const newTask: TaskItem = {
       id: `t-${Date.now()}`,
       title: newTaskTitle.trim(),
-      desc: newTaskDesc.trim() || 'Complete the task to earn reward balance.',
-      reward: newTaskReward.trim(),
+      type: newTaskType,
+      desc:
+        newTaskDesc.trim() ||
+        (newTaskType === 'telegram_join'
+          ? `Subscribe to ${newTaskTelegramUrl} to claim your bonus reward.`
+          : `Deposit ${newTaskDepositAmount} ETB or more within ${newTaskTimeWindow} hours to claim your reward.`),
+      reward: rewardStr,
+      rewardAmount: newTaskRewardAmount,
       target: newTaskTarget,
       status: 'active',
       completions: 0,
+      telegramUrl: newTaskType === 'telegram_join' ? newTaskTelegramUrl.trim() : undefined,
+      requiredDepositAmount:
+        newTaskType === 'deposit_requirement' ? newTaskDepositAmount : undefined,
+      timeWindowHours:
+        newTaskType === 'deposit_requirement' ? newTaskTimeWindow : undefined,
     };
+
     setTasks([newTask, ...tasks]);
     setShowNewTaskModal(false);
     setNewTaskTitle('');
     setNewTaskDesc('');
-    setNewTaskReward('');
+    setNewTaskRewardAmount(15);
+    setNewTaskTelegramUrl('@GameZoneETH');
+    setNewTaskDepositAmount(100);
+    setNewTaskTimeWindow(24);
     showToast(`Task "${newTask.title}" created successfully!`);
   };
 
@@ -1107,14 +1153,13 @@ export const App: React.FC = () => {
           )}
 
           {/* =========================================
-              VIEW 2: USERS MANAGEMENT (SEARCH-ONLY)
+              VIEW 2: USERS MANAGEMENT
              ========================================= */}
           {activeTab === 'users' && (
             <>
               <div className="page-heading">
                 <div>
-                  <h1>Users Lookup</h1>
-                  <p>Search players by name, phone number, username (@handle), or ID</p>
+                  <h1>Users</h1>
                 </div>
               </div>
 
@@ -1129,32 +1174,11 @@ export const App: React.FC = () => {
                     <input
                       type="text"
                       className="search-panel-input"
-                      placeholder="Search by Name, @username, Phone (e.g. 09...), or User ID..."
+                      placeholder="Search by Name, @username, Phone, or User ID..."
                       value={userSearch}
                       onChange={(e) => setUserSearch(e.target.value)}
                       autoFocus
                     />
-                  </div>
-
-                  <div className="filter-tabs" style={{ margin: 0 }}>
-                    <button
-                      className={`filter-tab ${userStatusFilter === 'all' ? 'active' : ''}`}
-                      onClick={() => setUserStatusFilter('all')}
-                    >
-                      All Status
-                    </button>
-                    <button
-                      className={`filter-tab ${userStatusFilter === 'active' ? 'active' : ''}`}
-                      onClick={() => setUserStatusFilter('active')}
-                    >
-                      Active
-                    </button>
-                    <button
-                      className={`filter-tab ${userStatusFilter === 'blocked' ? 'active' : ''}`}
-                      onClick={() => setUserStatusFilter('blocked')}
-                    >
-                      Blocked
-                    </button>
                   </div>
 
                   {userSearch && (
@@ -1169,59 +1193,11 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* EMPTY / INITIAL STATE (BEFORE SEARCH) */}
-              {!userSearch.trim() ? (
-                <div className="search-placeholder-card">
-                  <div className="search-icon-circle">
-                    <svg viewBox="0 0 24 24">
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.35-4.35" />
-                    </svg>
-                  </div>
-                  <h3>Search User Database</h3>
-                  <p>
-                    Enter a player's name, phone number, username (@handle), or ID in the search box above to look up their balance, gameplay record, and manage account status.
-                  </p>
-                  <div className="search-shortcuts">
-                    <span style={{ fontSize: '11px', color: 'var(--muted)', alignSelf: 'center', marginRight: '4px' }}>
-                      Try:
-                    </span>
-                    <button
-                      type="button"
-                      className="search-shortcut-pill"
-                      onClick={() => setUserSearch('@player_284')}
-                    >
-                      @player_284
-                    </button>
-                    <button
-                      type="button"
-                      className="search-shortcut-pill"
-                      onClick={() => setUserSearch('0911002233')}
-                    >
-                      0911002233
-                    </button>
-                    <button
-                      type="button"
-                      className="search-shortcut-pill"
-                      onClick={() => setUserSearch('Abebe')}
-                    >
-                      Abebe
-                    </button>
-                    <button
-                      type="button"
-                      className="search-shortcut-pill"
-                      onClick={() => setUserSearch('10284')}
-                    >
-                      #10284
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                /* SEARCH RESULTS */
+              {/* SEARCH RESULTS (ONLY SHOWN WHEN SEARCH QUERY IS ENTERED) */}
+              {userSearch.trim() ? (
                 (() => {
                   const s = userSearch.toLowerCase().trim();
                   const matchedUsers = users.filter((u) => {
-                    if (userStatusFilter !== 'all' && u.status !== userStatusFilter) return false;
                     return (
                       u.username.toLowerCase().includes(s) ||
                       u.name.toLowerCase().includes(s) ||
@@ -1232,21 +1208,10 @@ export const App: React.FC = () => {
 
                   if (matchedUsers.length === 0) {
                     return (
-                      <div className="search-placeholder-card">
-                        <div className="search-icon-circle" style={{ color: 'var(--red)' }}>
-                          <svg viewBox="0 0 24 24">
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="15" y1="9" x2="9" y2="15" />
-                            <line x1="9" y1="9" x2="15" y2="15" />
-                          </svg>
+                      <div className="panel" style={{ padding: '32px 20px', textAlign: 'center' }}>
+                        <div style={{ color: 'var(--muted)', fontSize: '13px', fontWeight: 600 }}>
+                          No players found matching "{userSearch}"
                         </div>
-                        <h3>No Players Found</h3>
-                        <p>
-                          No player matches "<strong>{userSearch}</strong>". Please verify the spelling, phone number, or user ID.
-                        </p>
-                        <button className="sm-btn outline" onClick={() => setUserSearch('')}>
-                          Clear Search
-                        </button>
                       </div>
                     );
                   }
@@ -1313,19 +1278,19 @@ export const App: React.FC = () => {
                     </div>
                   );
                 })()
-              )}
+              ) : null}
             </>
           )}
 
           {/* =========================================
-              VIEW 3: TASKS
+              VIEW 3: TASKS & QUESTS
              ========================================= */}
           {activeTab === 'tasks' && (
             <>
               <div className="page-heading">
                 <div>
                   <h1>Task & Quest Management</h1>
-                  <p>Incentivize player engagement with automated daily tasks and rewards</p>
+                  <p>Create Telegram channel subscription tasks and 24-hour deposit claim quests</p>
                 </div>
                 <button className="action-btn" onClick={() => setShowNewTaskModal(true)}>
                   <svg viewBox="0 0 24 24">
@@ -1335,57 +1300,152 @@ export const App: React.FC = () => {
                 </button>
               </div>
 
+              {/* FILTER TABS */}
+              <div className="filter-bar">
+                <div className="filter-tabs">
+                  <button
+                    className={`filter-tab ${taskFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setTaskFilter('all')}
+                  >
+                    All Tasks ({tasks.length})
+                  </button>
+                  <button
+                    className={`filter-tab ${taskFilter === 'telegram' ? 'active' : ''}`}
+                    onClick={() => setTaskFilter('telegram')}
+                  >
+                    📢 Telegram Join ({tasks.filter((t) => t.type === 'telegram_join').length})
+                  </button>
+                  <button
+                    className={`filter-tab ${taskFilter === 'deposit' ? 'active' : ''}`}
+                    onClick={() => setTaskFilter('deposit')}
+                  >
+                    💳 Deposit Quests ({tasks.filter((t) => t.type === 'deposit_requirement').length})
+                  </button>
+                </div>
+              </div>
+
               <div className="cards-grid">
-                {tasks.map((task) => (
-                  <div key={task.id} className="item-card">
-                    <div>
-                      <div className="item-card-top">
-                        <div className="item-card-title">{task.title}</div>
-                        <span className={`pill-badge ${task.status}`}>{task.status}</span>
-                      </div>
-                      <div className="item-card-desc">{task.desc}</div>
-                    </div>
-
-                    <div>
-                      <div className="item-card-meta">
-                        <div>
-                          Reward: <span className="item-reward">{task.reward}</span>
+                {tasks
+                  .filter((task) => {
+                    if (taskFilter === 'telegram') return task.type === 'telegram_join';
+                    if (taskFilter === 'deposit') return task.type === 'deposit_requirement';
+                    return true;
+                  })
+                  .map((task) => (
+                    <div key={task.id} className="item-card">
+                      <div>
+                        <div className="item-card-top">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span
+                              className="pill-badge"
+                              style={{
+                                background:
+                                  task.type === 'telegram_join'
+                                    ? 'rgba(34, 211, 238, 0.12)'
+                                    : 'rgba(99, 102, 241, 0.12)',
+                                color: task.type === 'telegram_join' ? '#22d3ee' : '#a5b4fc',
+                              }}
+                            >
+                              {task.type === 'telegram_join' ? '📢 Telegram Join' : '💳 Deposit Quest'}
+                            </span>
+                            <span className={`pill-badge ${task.status}`}>{task.status}</span>
+                          </div>
                         </div>
-                        <div>Target: {task.target}</div>
-                        <div style={{ marginLeft: 'auto', color: '#a5b4fc', fontWeight: 600 }}>
-                          {task.completions.toLocaleString()} claimed
+
+                        <div className="item-card-title" style={{ marginTop: '10px' }}>
+                          {task.title}
                         </div>
+                        <div className="item-card-desc">{task.desc}</div>
+
+                        {/* SPECIFIC DETAILS BOX */}
+                        {task.type === 'telegram_join' && task.telegramUrl && (
+                          <div
+                            style={{
+                              marginTop: '10px',
+                              padding: '8px 10px',
+                              background: '#111827',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border)',
+                              fontSize: '11px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <span style={{ color: '#8995a7' }}>Channel / Group:</span>
+                            <span style={{ color: '#22d3ee', fontWeight: 700, fontFamily: 'monospace' }}>
+                              {task.telegramUrl}
+                            </span>
+                          </div>
+                        )}
+
+                        {task.type === 'deposit_requirement' && (
+                          <div
+                            style={{
+                              marginTop: '10px',
+                              padding: '8px 10px',
+                              background: '#111827',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border)',
+                              fontSize: '11px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '4px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#8995a7' }}>Required Deposit:</span>
+                              <span style={{ color: '#4ade80', fontWeight: 700 }}>
+                                {task.requiredDepositAmount || 100} ETB in {task.timeWindowHours || 24}h
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '9px', color: '#657286' }}>
+                              Player clicks "Claim" → System verifies 24-hour deposits
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                        <button
-                          className={`sm-btn ${task.status === 'active' ? 'danger' : 'success'}`}
-                          style={{ flex: 1 }}
-                          onClick={() => {
-                            setTasks((prev) =>
-                              prev.map((t) =>
-                                t.id === task.id
-                                  ? { ...t, status: t.status === 'active' ? 'disabled' : 'active' }
-                                  : t
-                              )
-                            );
-                          }}
-                        >
-                          {task.status === 'active' ? 'Disable' : 'Enable'}
-                        </button>
-                        <button
-                          className="sm-btn outline"
-                          onClick={() => {
-                            setTasks((prev) => prev.filter((t) => t.id !== task.id));
-                            showToast('Task removed.');
-                          }}
-                        >
-                          Delete
-                        </button>
+                      <div>
+                        <div className="item-card-meta">
+                          <div>
+                            Reward: <span className="item-reward">{task.reward}</span>
+                          </div>
+                          <div>Target: {task.target}</div>
+                          <div style={{ marginLeft: 'auto', color: '#a5b4fc', fontWeight: 600 }}>
+                            {task.completions.toLocaleString()} claimed
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                          <button
+                            className={`sm-btn ${task.status === 'active' ? 'danger' : 'success'}`}
+                            style={{ flex: 1 }}
+                            onClick={() => {
+                              setTasks((prev) =>
+                                prev.map((t) =>
+                                  t.id === task.id
+                                    ? { ...t, status: t.status === 'active' ? 'disabled' : 'active' }
+                                    : t
+                                )
+                              );
+                            }}
+                          >
+                            {task.status === 'active' ? 'Disable' : 'Enable'}
+                          </button>
+                          <button
+                            className="sm-btn outline"
+                            onClick={() => {
+                              setTasks((prev) => prev.filter((t) => t.id !== task.id));
+                              showToast('Task removed.');
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </>
           )}
@@ -2178,7 +2238,7 @@ export const App: React.FC = () => {
          ========================================= */}
       {showNewTaskModal && (
         <div className="modal-backdrop" onClick={() => setShowNewTaskModal(false)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-box" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
               <h3>Create New Player Task</h3>
               <button className="modal-close" onClick={() => setShowNewTaskModal(false)}>
@@ -2188,54 +2248,158 @@ export const App: React.FC = () => {
 
             <form onSubmit={handleCreateTask}>
               <div className="modal-body">
+                {/* TASK TYPE DROPDOWN */}
                 <div className="form-group">
-                  <label className="form-label">Task Title</label>
+                  <label className="form-label">Task Type (Select Task Category)</label>
+                  <select
+                    className="select"
+                    style={{ width: '100%', height: '42px', fontSize: '13px', background: '#111827' }}
+                    value={newTaskType}
+                    onChange={(e) => {
+                      const type = e.target.value as TaskType;
+                      setNewTaskType(type);
+                      if (type === 'telegram_join') {
+                        setNewTaskTitle('Join Official Telegram Channel');
+                        setNewTaskRewardAmount(15);
+                      } else if (type === 'deposit_requirement') {
+                        setNewTaskTitle('24-Hour 100 ETB Deposit Quest');
+                        setNewTaskRewardAmount(25);
+                      } else if (type === 'gameplay') {
+                        setNewTaskTitle('Play 5 Bingo Rounds');
+                        setNewTaskRewardAmount(20);
+                      }
+                    }}
+                  >
+                    <option value="telegram_join">📢 Telegram Channel / Group Join Task</option>
+                    <option value="deposit_requirement">💳 24-Hour Deposit Requirement Quest (Claim Button)</option>
+                    <option value="gameplay">🎮 Gameplay / Bingo Round Challenge</option>
+                  </select>
+                </div>
+
+                {/* TASK TITLE */}
+                <div className="form-group">
+                  <label className="form-label">Task Title / Name</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. Play 10 Bingo Games"
+                    placeholder={
+                      newTaskType === 'telegram_join'
+                        ? 'e.g. Join Official Telegram Channel'
+                        : 'e.g. 24-Hour 100 ETB Deposit Quest'
+                    }
                     value={newTaskTitle}
                     onChange={(e) => setNewTaskTitle(e.target.value)}
                     required
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Reward Amount / Description</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. +25 ETB Playable"
-                    value={newTaskReward}
-                    onChange={(e) => setNewTaskReward(e.target.value)}
-                    required
-                  />
+                {/* CONDITIONAL: TELEGRAM CHANNEL FIELDS */}
+                {newTaskType === 'telegram_join' && (
+                  <div className="form-group">
+                    <label className="form-label">Telegram Channel / Group (Username or Link)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. @GameZoneETH or https://t.me/GameZoneETH"
+                      value={newTaskTelegramUrl}
+                      onChange={(e) => setNewTaskTelegramUrl(e.target.value)}
+                      required
+                    />
+                    <span style={{ fontSize: '10px', color: '#8995a7', marginTop: '4px', display: 'block' }}>
+                      System links user directly to this channel and checks membership upon claiming.
+                    </span>
+                  </div>
+                )}
+
+                {/* CONDITIONAL: DEPOSIT REQUIREMENT FIELDS */}
+                {newTaskType === 'deposit_requirement' && (
+                  <div style={{ background: '#111827', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
+                      <div>
+                        <label className="form-label">Required Deposit (ETB)</label>
+                        <input
+                          type="number"
+                          className="form-input"
+                          min="10"
+                          value={newTaskDepositAmount}
+                          onChange={(e) => setNewTaskDepositAmount(Number(e.target.value))}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label">Time Window (Hours)</label>
+                        <select
+                          className="select"
+                          style={{ width: '100%', height: '42px', fontSize: '12px' }}
+                          value={newTaskTimeWindow}
+                          onChange={(e) => setNewTaskTimeWindow(Number(e.target.value))}
+                        >
+                          <option value={24}>Within 24 Hours</option>
+                          <option value={48}>Within 48 Hours</option>
+                          <option value={72}>Within 72 Hours</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#a5b4fc', lineHeight: 1.4 }}>
+                      ⚡ <strong>How it works:</strong> Players see a "Claim" button. When clicked, the system verifies if the player deposited at least {newTaskDepositAmount} ETB in the past {newTaskTimeWindow} hours. If yes, reward is credited; otherwise, prompts player to deposit.
+                    </div>
+                  </div>
+                )}
+
+                {/* CONDITIONAL: GAMEPLAY FIELDS */}
+                {newTaskType === 'gameplay' && (
+                  <div style={{ background: '#111827', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '16px' }}>
+                    <div style={{ fontSize: '11px', color: '#a5b4fc', lineHeight: 1.4 }}>
+                      🎮 <strong>Gameplay Quest:</strong> Players participate in game rooms (e.g. 5 Bingo rounds) to unlock and claim this reward balance.
+                    </div>
+                  </div>
+                )}
+
+                {/* REWARD AMOUNT & TARGET */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Reward Amount (ETB)</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      min="1"
+                      placeholder="15"
+                      value={newTaskRewardAmount}
+                      onChange={(e) => setNewTaskRewardAmount(Number(e.target.value))}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Target Audience</label>
+                    <select
+                      className="select"
+                      style={{ width: '100%', height: '42px', fontSize: '12px' }}
+                      value={newTaskTarget}
+                      onChange={(e) => setNewTaskTarget(e.target.value)}
+                    >
+                      <option>All Players</option>
+                      <option>New Players</option>
+                      <option>Active Players</option>
+                      <option>VIP Depositors</option>
+                    </select>
+                  </div>
                 </div>
 
+                {/* DESCRIPTION */}
                 <div className="form-group">
-                  <label className="form-label">Description</label>
+                  <label className="form-label">Description / Instructions (Optional)</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Task details and instructions for the player..."
+                    placeholder={
+                      newTaskType === 'telegram_join'
+                        ? 'e.g. Subscribe to our channel to get daily promo drops'
+                        : `e.g. Deposit ${newTaskDepositAmount} ETB within ${newTaskTimeWindow}h to claim bonus`
+                    }
                     value={newTaskDesc}
                     onChange={(e) => setNewTaskDesc(e.target.value)}
                   />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Target Group</label>
-                  <select
-                    className="select"
-                    style={{ width: '100%', height: '40px' }}
-                    value={newTaskTarget}
-                    onChange={(e) => setNewTaskTarget(e.target.value)}
-                  >
-                    <option>All Players</option>
-                    <option>New Players</option>
-                    <option>Active Players</option>
-                    <option>VIP Depositors</option>
-                  </select>
                 </div>
               </div>
 
