@@ -1107,119 +1107,213 @@ export const App: React.FC = () => {
           )}
 
           {/* =========================================
-              VIEW 2: USERS MANAGEMENT
+              VIEW 2: USERS MANAGEMENT (SEARCH-ONLY)
              ========================================= */}
           {activeTab === 'users' && (
             <>
               <div className="page-heading">
                 <div>
-                  <h1>Users Management</h1>
-                  <p>Registered players, balance balances & account statuses</p>
+                  <h1>Users Lookup</h1>
+                  <p>Search players by name, phone number, username (@handle), or ID</p>
                 </div>
               </div>
 
-              <div className="filter-bar">
-                <div className="filter-tabs">
-                  <button
-                    className={`filter-tab ${userStatusFilter === 'all' ? 'active' : ''}`}
-                    onClick={() => setUserStatusFilter('all')}
-                  >
-                    All ({users.length})
-                  </button>
-                  <button
-                    className={`filter-tab ${userStatusFilter === 'active' ? 'active' : ''}`}
-                    onClick={() => setUserStatusFilter('active')}
-                  >
-                    Active ({users.filter((u) => u.status === 'active').length})
-                  </button>
-                  <button
-                    className={`filter-tab ${userStatusFilter === 'blocked' ? 'active' : ''}`}
-                    onClick={() => setUserStatusFilter('blocked')}
-                  >
-                    Blocked ({users.filter((u) => u.status === 'blocked').length})
-                  </button>
-                </div>
+              {/* SEARCH PANEL */}
+              <div className="search-panel">
+                <div className="search-panel-inner">
+                  <div className="search-panel-input-wrap">
+                    <svg viewBox="0 0 24 24">
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.35-4.35" />
+                    </svg>
+                    <input
+                      type="text"
+                      className="search-panel-input"
+                      placeholder="Search by Name, @username, Phone (e.g. 09...), or User ID..."
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
 
-                <div className="search-input-wrap">
-                  <svg viewBox="0 0 24 24">
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.35-4.35" />
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Search username, phone, or ID..."
-                    value={userSearch}
-                    onChange={(e) => setUserSearch(e.target.value)}
-                  />
+                  <div className="filter-tabs" style={{ margin: 0 }}>
+                    <button
+                      className={`filter-tab ${userStatusFilter === 'all' ? 'active' : ''}`}
+                      onClick={() => setUserStatusFilter('all')}
+                    >
+                      All Status
+                    </button>
+                    <button
+                      className={`filter-tab ${userStatusFilter === 'active' ? 'active' : ''}`}
+                      onClick={() => setUserStatusFilter('active')}
+                    >
+                      Active
+                    </button>
+                    <button
+                      className={`filter-tab ${userStatusFilter === 'blocked' ? 'active' : ''}`}
+                      onClick={() => setUserStatusFilter('blocked')}
+                    >
+                      Blocked
+                    </button>
+                  </div>
+
+                  {userSearch && (
+                    <button
+                      className="sm-btn outline"
+                      style={{ height: '42px', padding: '0 14px' }}
+                      onClick={() => setUserSearch('')}
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="panel">
-                <div className="table-wrap">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Player</th>
-                        <th>Phone</th>
-                        <th>Playable</th>
-                        <th>Withdrawable</th>
-                        <th>Total Wagered</th>
-                        <th>Record</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users
-                        .filter((u) => {
-                          if (userStatusFilter !== 'all' && u.status !== userStatusFilter) return false;
-                          if (
-                            userSearch &&
-                            !u.username.toLowerCase().includes(userSearch.toLowerCase()) &&
-                            !u.name.toLowerCase().includes(userSearch.toLowerCase()) &&
-                            !u.phone.includes(userSearch) &&
-                            !u.id.includes(userSearch)
-                          ) {
-                            return false;
-                          }
-                          return true;
-                        })
-                        .map((u) => (
-                          <tr key={u.id}>
-                            <td>
-                              <div style={{ fontWeight: 700, color: '#f8fafc' }}>{u.name}</div>
-                              <div style={{ color: '#8995a7', fontSize: '10px' }}>{u.username} · #{u.id}</div>
-                            </td>
-                            <td style={{ color: '#a5b4fc', fontFamily: 'monospace' }}>{u.phone}</td>
-                            <td style={{ color: '#22d3ee', fontWeight: 700 }}>{u.playableBalance.toLocaleString()} ETB</td>
-                            <td style={{ color: '#4ade80', fontWeight: 700 }}>{u.withdrawableBalance.toLocaleString()} ETB</td>
-                            <td style={{ color: '#8995a7' }}>{u.totalWagered.toLocaleString()} ETB</td>
-                            <td>
-                              <span style={{ color: '#4ade80', fontWeight: 600 }}>{u.winCount}W</span> /{' '}
-                              <span style={{ color: '#f87171', fontWeight: 600 }}>{u.lossCount}L</span>
-                            </td>
-                            <td>
-                              <span className={`pill-badge ${u.status}`}>{u.status}</span>
-                            </td>
-                            <td>
-                              <div style={{ display: 'flex', gap: '6px' }}>
-                                <button className="sm-btn outline" onClick={() => setSelectedUser(u)}>
-                                  Profile
-                                </button>
-                                <button
-                                  className={`sm-btn ${u.status === 'active' ? 'danger' : 'success'}`}
-                                  onClick={() => handleToggleUserStatus(u.id)}
-                                >
-                                  {u.status === 'active' ? 'Block' : 'Unblock'}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
+              {/* EMPTY / INITIAL STATE (BEFORE SEARCH) */}
+              {!userSearch.trim() ? (
+                <div className="search-placeholder-card">
+                  <div className="search-icon-circle">
+                    <svg viewBox="0 0 24 24">
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.35-4.35" />
+                    </svg>
+                  </div>
+                  <h3>Search User Database</h3>
+                  <p>
+                    Enter a player's name, phone number, username (@handle), or ID in the search box above to look up their balance, gameplay record, and manage account status.
+                  </p>
+                  <div className="search-shortcuts">
+                    <span style={{ fontSize: '11px', color: 'var(--muted)', alignSelf: 'center', marginRight: '4px' }}>
+                      Try:
+                    </span>
+                    <button
+                      type="button"
+                      className="search-shortcut-pill"
+                      onClick={() => setUserSearch('@player_284')}
+                    >
+                      @player_284
+                    </button>
+                    <button
+                      type="button"
+                      className="search-shortcut-pill"
+                      onClick={() => setUserSearch('0911002233')}
+                    >
+                      0911002233
+                    </button>
+                    <button
+                      type="button"
+                      className="search-shortcut-pill"
+                      onClick={() => setUserSearch('Abebe')}
+                    >
+                      Abebe
+                    </button>
+                    <button
+                      type="button"
+                      className="search-shortcut-pill"
+                      onClick={() => setUserSearch('10284')}
+                    >
+                      #10284
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* SEARCH RESULTS */
+                (() => {
+                  const s = userSearch.toLowerCase().trim();
+                  const matchedUsers = users.filter((u) => {
+                    if (userStatusFilter !== 'all' && u.status !== userStatusFilter) return false;
+                    return (
+                      u.username.toLowerCase().includes(s) ||
+                      u.name.toLowerCase().includes(s) ||
+                      u.phone.includes(s) ||
+                      u.id.includes(s)
+                    );
+                  });
+
+                  if (matchedUsers.length === 0) {
+                    return (
+                      <div className="search-placeholder-card">
+                        <div className="search-icon-circle" style={{ color: 'var(--red)' }}>
+                          <svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="15" y1="9" x2="9" y2="15" />
+                            <line x1="9" y1="9" x2="15" y2="15" />
+                          </svg>
+                        </div>
+                        <h3>No Players Found</h3>
+                        <p>
+                          No player matches "<strong>{userSearch}</strong>". Please verify the spelling, phone number, or user ID.
+                        </p>
+                        <button className="sm-btn outline" onClick={() => setUserSearch('')}>
+                          Clear Search
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="panel">
+                      <div className="panel-header">
+                        <div>
+                          <div className="panel-title">Search Results ({matchedUsers.length})</div>
+                          <div className="panel-sub">Matching query "{userSearch}"</div>
+                        </div>
+                      </div>
+
+                      <div className="table-wrap">
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              <th>Player</th>
+                              <th>Phone</th>
+                              <th>Playable</th>
+                              <th>Withdrawable</th>
+                              <th>Total Wagered</th>
+                              <th>Record</th>
+                              <th>Status</th>
+                              <th>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {matchedUsers.map((u) => (
+                              <tr key={u.id}>
+                                <td>
+                                  <div style={{ fontWeight: 700, color: '#f8fafc' }}>{u.name}</div>
+                                  <div style={{ color: '#8995a7', fontSize: '10px' }}>{u.username} · #{u.id}</div>
+                                </td>
+                                <td style={{ color: '#a5b4fc', fontFamily: 'monospace' }}>{u.phone}</td>
+                                <td style={{ color: '#22d3ee', fontWeight: 700 }}>{u.playableBalance.toLocaleString()} ETB</td>
+                                <td style={{ color: '#4ade80', fontWeight: 700 }}>{u.withdrawableBalance.toLocaleString()} ETB</td>
+                                <td style={{ color: '#8995a7' }}>{u.totalWagered.toLocaleString()} ETB</td>
+                                <td>
+                                  <span style={{ color: '#4ade80', fontWeight: 600 }}>{u.winCount}W</span> /{' '}
+                                  <span style={{ color: '#f87171', fontWeight: 600 }}>{u.lossCount}L</span>
+                                </td>
+                                <td>
+                                  <span className={`pill-badge ${u.status}`}>{u.status}</span>
+                                </td>
+                                <td>
+                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                    <button className="sm-btn outline" onClick={() => setSelectedUser(u)}>
+                                      Profile
+                                    </button>
+                                    <button
+                                      className={`sm-btn ${u.status === 'active' ? 'danger' : 'success'}`}
+                                      onClick={() => handleToggleUserStatus(u.id)}
+                                    >
+                                      {u.status === 'active' ? 'Block' : 'Unblock'}
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
             </>
           )}
 
